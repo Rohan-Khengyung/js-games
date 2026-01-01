@@ -2,7 +2,7 @@
 const gameState = {
     score: 0,
     foundWords: 0,
-    totalWords: 10,
+    totalWords: 8,
     timeLeft: 300,
     timer: null,
     gridSize: 10,
@@ -18,13 +18,13 @@ const gameState = {
     timeLimit: 300,
     gameSettings: {
         gridSize: 10,
-        wordCount: 10,
+        wordCount: 8,
         difficulty: 'easy',
         timeLimit: 300
     }
 };
 
-// Word lists by difficulty
+// Word lists by difficulty (optimized for 8-12 letter grids)
 const wordLists = {
     easy: [
         "WORD", "GAME", "PLAY", "FIND", "GRID", "LIST", "TIME", "LOVE", "BOOK", "HOME",
@@ -34,7 +34,8 @@ const wordLists = {
         "GOOD", "BAD", "HAPPY", "SAD", "RICH", "POOR", "WISE", "FOOL", "KIND", "MEAN",
         "CITY", "TOWN", "ROAD", "PATH", "DOOR", "WINDOW", "TABLE", "CHAIR", "BED", "SOFA",
         "FISH", "BIRD", "CAT", "DOG", "LION", "BEAR", "DEER", "WOLF", "FOX", "RABBIT",
-        "APPLE", "PEAR", "GRAPE", "BANANA", "MANGO", "LEMON", "PEACH", "BERRY", "MELON", "KIWI"
+        "APPLE", "PEAR", "GRAPE", "BANANA", "MANGO", "LEMON", "PEACH", "BERRY", "MELON", "KIWI",
+        "EARTH", "MARS", "VENUS", "JUPITER", "SATURN", "PLUTO", "COMET", "STAR", "MOON", "SUN"
     ],
     medium: [
         "PUZZLE", "SEARCH", "CHALLENGE", "SOLUTION", "HORIZONTAL", "VERTICAL", "DIAGONAL",
@@ -52,10 +53,7 @@ const wordLists = {
         "ARCHITECTURE", "ENGINEERING", "TECHNOLOGY", "SCIENCE", "MATHEMATICS", "CHEMISTRY",
         "BIOLOGY", "PHYSICS", "ASTRONOMY", "GEOGRAPHY", "HISTORY", "LITERATURE", "PHILOSOPHY",
         "PSYCHOLOGY", "SOCIOLOGY", "ECONOMICS", "POLITICS", "GOVERNMENT", "DEMOCRACY",
-        "CONSTITUTION", "REVOLUTION", "EVOLUTION", "INVENTION", "DISCOVERY", "EXPLORATION",
-        "COMMUNICATION", "TRANSPORTATION", "EDUCATION", "INFORMATION", "TELECOMMUNICATION",
-        "INTERNATIONAL", "MULTINATIONAL", "ORGANIZATION", "INSTITUTION", "ASSOCIATION",
-        "COOPERATION", "COLLABORATION", "PARTICIPATION", "CELEBRATION", "CONGRATULATIONS"
+        "CONSTITUTION", "REVOLUTION", "EVOLUTION", "INVENTION", "DISCOVERY", "EXPLORATION"
     ]
 };
 
@@ -90,6 +88,11 @@ const checkWordBtn = document.getElementById('check-word-btn');
 const backToMenuBtn = document.getElementById('back-to-menu-btn');
 const restartGameBtn = document.getElementById('restart-game-btn');
 
+// Mobile grid controls
+const zoomOutBtn = document.getElementById('zoom-out-btn');
+const zoomInBtn = document.getElementById('zoom-in-btn');
+const centerGridBtn = document.getElementById('center-grid-btn');
+
 // Settings elements
 const gridSizeSelect = document.getElementById('grid-size');
 const wordCountSelect = document.getElementById('word-count');
@@ -119,12 +122,17 @@ function initGame() {
     backToMenuBtn.addEventListener('click', goBackToMenu);
     restartGameBtn.addEventListener('click', restartGame);
     
+    // Set up mobile grid controls
+    if (zoomOutBtn) zoomOutBtn.addEventListener('click', zoomOutGrid);
+    if (zoomInBtn) zoomInBtn.addEventListener('click', zoomInGrid);
+    if (centerGridBtn) centerGridBtn.addEventListener('click', centerGrid);
+    
+    // Handle window resize
+    window.addEventListener('resize', handleResize);
+    
     // Initialize with start screen and load high scores
     showStartScreen();
     loadHighScores();
-    
-    // Handle window resize for responsive grid
-    window.addEventListener('resize', handleResize);
 }
 
 // Handle window resize
@@ -139,26 +147,40 @@ function adjustGridSize() {
     const gridCells = document.querySelectorAll('.grid-cell');
     const gridSize = gameState.gridSize;
     const containerWidth = document.querySelector('.grid-container').offsetWidth;
-    const maxCellSize = Math.floor(containerWidth / gridSize) - 4; // -4 for gap and border
     
-    // Set base size
-    let cellSize = Math.min(maxCellSize, 40); // Max 40px
-    let fontSize = '1rem';
+    // Calculate maximum cell size based on container width and grid size
+    let maxCellSize = Math.floor((containerWidth - 20) / gridSize); // 20px for padding/margin
     
-    // Adjust for different grid sizes
-    if (gridSize === 15) {
-        cellSize = Math.min(maxCellSize, 30);
-        fontSize = '0.9rem';
-    } else if (gridSize === 12) {
-        cellSize = Math.min(maxCellSize, 35);
-        fontSize = '1rem';
-    } else if (gridSize === 10) {
-        cellSize = Math.min(maxCellSize, 40);
-        fontSize = '1.1rem';
+    // Ensure minimum cell size
+    if (maxCellSize < 20) maxCellSize = 20;
+    if (maxCellSize > 45) maxCellSize = 45;
+    
+    // Set base sizes for different grid sizes
+    let cellSize, fontSize;
+    
+    switch(gridSize) {
+        case 8:
+            cellSize = Math.min(maxCellSize, 45);
+            fontSize = '1.1rem';
+            break;
+        case 10:
+            cellSize = Math.min(maxCellSize, 40);
+            fontSize = '1rem';
+            break;
+        case 12:
+            cellSize = Math.min(maxCellSize, 35);
+            fontSize = '0.9rem';
+            break;
+        default:
+            cellSize = maxCellSize;
+            fontSize = '1rem';
     }
     
-    // Ensure minimum size
-    cellSize = Math.max(cellSize, 20);
+    // Adjust for very small screens
+    if (window.innerWidth < 400) {
+        cellSize = Math.max(cellSize - 4, 18);
+        fontSize = '0.9rem';
+    }
     
     // Apply styles
     gridCells.forEach(cell => {
@@ -171,6 +193,81 @@ function adjustGridSize() {
     
     // Update grid class for CSS adjustments
     puzzleGridElement.className = `puzzle-grid grid-size-${gridSize}`;
+    
+    // Show mobile controls on small screens
+    const mobileControls = document.querySelector('.mobile-grid-controls');
+    if (mobileControls) {
+        if (window.innerWidth < 600 || (gridSize === 12 && window.innerWidth < 768)) {
+            mobileControls.style.display = 'flex';
+        } else {
+            mobileControls.style.display = 'none';
+        }
+    }
+}
+
+// Mobile grid controls
+function zoomOutGrid() {
+    const gridContainer = document.querySelector('.grid-container');
+    if (gridContainer) {
+        gridContainer.style.transform = 'scale(0.9)';
+        setTimeout(() => {
+            gridContainer.style.transform = '';
+        }, 300);
+        
+        // Feedback message
+        showTemporaryMessage('Grid zoomed out', '#26d0ce');
+    }
+}
+
+function zoomInGrid() {
+    const gridContainer = document.querySelector('.grid-container');
+    if (gridContainer) {
+        gridContainer.style.transform = 'scale(1.1)';
+        setTimeout(() => {
+            gridContainer.style.transform = '';
+        }, 300);
+        
+        // Feedback message
+        showTemporaryMessage('Grid zoomed in', '#26d0ce');
+    }
+}
+
+function centerGrid() {
+    const gridContainer = document.querySelector('.grid-container');
+    const puzzleGrid = document.getElementById('puzzle-grid');
+    
+    if (gridContainer && puzzleGrid) {
+        gridContainer.scrollTo({
+            left: (puzzleGrid.offsetWidth - gridContainer.offsetWidth) / 2,
+            top: (puzzleGrid.offsetHeight - gridContainer.offsetHeight) / 2,
+            behavior: 'smooth'
+        });
+        
+        // Flash effect
+        gridContainer.style.boxShadow = '0 0 0 3px #26d0ce';
+        setTimeout(() => {
+            gridContainer.style.boxShadow = '';
+        }, 500);
+        
+        // Feedback message
+        showTemporaryMessage('Grid centered', '#26d0ce');
+    }
+}
+
+// Show temporary message
+function showTemporaryMessage(text, color) {
+    const originalMessage = messageElement.textContent;
+    const originalColor = messageElement.style.color;
+    
+    messageElement.textContent = text;
+    messageElement.style.color = color;
+    
+    setTimeout(() => {
+        if (gameState.gameActive) {
+            messageElement.textContent = originalMessage;
+            messageElement.style.color = originalColor;
+        }
+    }, 1500);
 }
 
 // Load high scores from localStorage
@@ -274,17 +371,7 @@ function clearAllScores() {
         loadHighScores();
         
         // Show confirmation message
-        const originalMessage = messageElement.textContent;
-        const originalColor = messageElement.style.color;
-        
-        messageElement.textContent = 'All high scores have been cleared.';
-        messageElement.style.color = '#ff5252';
-        
-        // Restore original message after 3 seconds
-        setTimeout(() => {
-            messageElement.textContent = originalMessage;
-            messageElement.style.color = originalColor;
-        }, 3000);
+        showTemporaryMessage('All high scores have been cleared.', '#ff5252');
     }
 }
 
@@ -348,7 +435,13 @@ function startGame() {
     generatePuzzle();
     
     // Adjust grid size
-    setTimeout(adjustGridSize, 100);
+    setTimeout(() => {
+        adjustGridSize();
+        // Auto-center on mobile
+        if (window.innerWidth < 600) {
+            setTimeout(centerGrid, 200);
+        }
+    }, 100);
     
     // Start timer
     startTimer();
@@ -375,53 +468,32 @@ function generatePuzzle() {
     const selectedWords = new Set();
     const maxWordLength = gameState.gridSize;
     
-    // Sort word pool by length (longest first) for better placement
-    wordPool.sort((a, b) => b.length - a.length);
+    // Filter words that fit in the current grid size
+    const fittingWords = wordPool.filter(word => word.length <= maxWordLength);
     
-    for (let i = 0; i < gameState.totalWords && wordPool.length > 0; i++) {
-        // Filter words that fit in the grid
-        const fittingWords = wordPool.filter(word => 
-            word.length <= maxWordLength && 
-            !selectedWords.has(word)
-        );
-        
-        if (fittingWords.length === 0) {
-            const fallbackWords = ["GAME", "WORD", "FIND", "PLAY", "GRID", "FUN", "TIME", "LOVE", "BOOK", "HOME"];
-            const availableFallback = fallbackWords.filter(word => 
-                word.length <= maxWordLength && 
-                !selectedWords.has(word)
-            );
-            
-            if (availableFallback.length > 0) {
-                const randomIndex = Math.floor(Math.random() * availableFallback.length);
-                selectedWords.add(availableFallback[randomIndex]);
-            }
-            continue;
-        }
-        
-        const randomIndex = Math.floor(Math.random() * fittingWords.length);
-        const selectedWord = fittingWords[randomIndex].toUpperCase();
-        selectedWords.add(selectedWord);
-        
-        // Remove the selected word from pool to avoid duplicates
-        const wordIndex = wordPool.indexOf(fittingWords[randomIndex]);
-        if (wordIndex > -1) {
-            wordPool.splice(wordIndex, 1);
+    // Shuffle the fitting words
+    const shuffledWords = [...fittingWords].sort(() => Math.random() - 0.5);
+    
+    // Select words for the puzzle
+    for (let i = 0; i < gameState.totalWords && i < shuffledWords.length; i++) {
+        const word = shuffledWords[i].toUpperCase();
+        if (!selectedWords.has(word)) {
+            selectedWords.add(word);
         }
     }
     
-    // Convert set to array and sort by length (longest first)
-    gameState.words = Array.from(selectedWords).sort((a, b) => b.length - a.length);
-    
-    // If we still don't have enough words, add more fallback words
-    const fallbackWords = ["GAME", "WORD", "FIND", "PLAY", "GRID", "PUZZLE", "SEARCH", "SOLVE", "TIME", "LOVE"];
-    while (gameState.words.length < gameState.totalWords) {
+    // If we don't have enough words, add fallback words
+    const fallbackWords = ["GAME", "WORD", "FIND", "PLAY", "GRID", "PUZZLE", "SEARCH", "SOLVE"];
+    while (selectedWords.size < gameState.totalWords) {
         for (const word of fallbackWords) {
-            if (word.length <= maxWordLength && !gameState.words.includes(word) && gameState.words.length < gameState.totalWords) {
-                gameState.words.push(word);
+            if (word.length <= maxWordLength && selectedWords.size < gameState.totalWords) {
+                selectedWords.add(word.toUpperCase());
             }
         }
     }
+    
+    // Convert set to array
+    gameState.words = Array.from(selectedWords);
     
     // Initialize empty grid
     for (let i = 0; i < gameState.gridSize; i++) {
@@ -457,9 +529,6 @@ function placeWordsInGrid() {
         { x: -1, y: 1, name: 'diagonal-down-left' }
     ];
     
-    // Track which words couldn't be placed
-    let unplacedWords = [];
-    
     // Sort words by length (longest first) for better placement
     const sortedWords = [...gameState.words].sort((a, b) => b.length - a.length);
     
@@ -467,15 +536,15 @@ function placeWordsInGrid() {
     for (const word of sortedWords) {
         let placed = false;
         let attempts = 0;
-        const maxAttempts = 1000;
+        const maxAttempts = 500;
         
-        // Shuffle directions for each word to get more variety
+        // Shuffle directions for each word
         const shuffledDirections = [...directions].sort(() => Math.random() - 0.5);
         
         while (!placed && attempts < maxAttempts) {
             attempts++;
             
-            // Choose random direction from shuffled list
+            // Choose random direction
             const direction = shuffledDirections[attempts % shuffledDirections.length];
             
             // Calculate maximum possible starting position
@@ -502,11 +571,11 @@ function placeWordsInGrid() {
                 continue;
             }
             
-            // Choose random starting position within bounds
+            // Choose random starting position
             const startX = Math.floor(Math.random() * (maxStartX - minStartX + 1)) + minStartX;
             const startY = Math.floor(Math.random() * (maxStartY - minStartY + 1)) + minStartY;
             
-            // Check if word fits in this direction
+            // Check if word fits
             let canPlace = true;
             const cellsToCheck = [];
             
@@ -514,7 +583,6 @@ function placeWordsInGrid() {
                 const x = startX + direction.x * i;
                 const y = startY + direction.y * i;
                 
-                // Ensure grid indices exist
                 if (!gameState.grid[x] || gameState.grid[x][y] === undefined) {
                     canPlace = false;
                     break;
@@ -545,30 +613,83 @@ function placeWordsInGrid() {
                 
                 gameState.placedWords.push(wordInfo);
                 placed = true;
-                break;
             }
         }
         
-        if (!placed) {
-            unplacedWords.push(word);
-        }
-    }
-    
-    // If we have unplaced words, try to add them as shorter words
-    if (unplacedWords.length > 0) {
-        for (const unplacedWord of unplacedWords) {
-            // Try to add shorter words instead
-            const shorterWord = gameState.words.find(w => 
-                w.length < unplacedWord.length && 
-                w !== unplacedWord &&
-                !gameState.placedWords.some(pw => pw.word === w)
-            );
-            
-            if (shorterWord) {
-                // Remove the unplaced word and add the shorter one
-                const index = gameState.words.indexOf(unplacedWord);
-                if (index > -1) {
-                    gameState.words.splice(index, 1);
+        // If word couldn't be placed, try a shorter version
+        if (!placed && word.length > 3) {
+            // Try with a shorter version of the word
+            const shorterWord = word.substring(0, word.length - 1);
+            const wordIndex = gameState.words.indexOf(word);
+            if (wordIndex > -1) {
+                gameState.words[wordIndex] = shorterWord;
+                // Try again with shorter word
+                attempts = 0;
+                while (!placed && attempts < maxAttempts) {
+                    attempts++;
+                    const direction = shuffledDirections[attempts % shuffledDirections.length];
+                    
+                    let maxStartX = gameState.gridSize - 1;
+                    let maxStartY = gameState.gridSize - 1;
+                    let minStartX = 0;
+                    let minStartY = 0;
+                    
+                    if (direction.x > 0) {
+                        maxStartX = gameState.gridSize - shorterWord.length;
+                    } else if (direction.x < 0) {
+                        minStartX = shorterWord.length - 1;
+                    }
+                    
+                    if (direction.y > 0) {
+                        maxStartY = gameState.gridSize - shorterWord.length;
+                    } else if (direction.y < 0) {
+                        minStartY = shorterWord.length - 1;
+                    }
+                    
+                    if (maxStartX < minStartX || maxStartY < minStartY) {
+                        continue;
+                    }
+                    
+                    const startX = Math.floor(Math.random() * (maxStartX - minStartX + 1)) + minStartX;
+                    const startY = Math.floor(Math.random() * (maxStartY - minStartY + 1)) + minStartY;
+                    
+                    let canPlace = true;
+                    const cellsToCheck = [];
+                    
+                    for (let i = 0; i < shorterWord.length; i++) {
+                        const x = startX + direction.x * i;
+                        const y = startY + direction.y * i;
+                        
+                        if (!gameState.grid[x] || gameState.grid[x][y] === undefined) {
+                            canPlace = false;
+                            break;
+                        }
+                        
+                        const cellLetter = gameState.grid[x][y];
+                        if (cellLetter !== "" && cellLetter !== shorterWord[i]) {
+                            canPlace = false;
+                            break;
+                        }
+                        
+                        cellsToCheck.push({ x, y, letter: shorterWord[i] });
+                    }
+                    
+                    if (canPlace) {
+                        const wordInfo = {
+                            word: shorterWord,
+                            startX: startX,
+                            startY: startY,
+                            direction: direction,
+                            found: false
+                        };
+                        
+                        for (const cell of cellsToCheck) {
+                            gameState.grid[cell.x][cell.y] = cell.letter;
+                        }
+                        
+                        gameState.placedWords.push(wordInfo);
+                        placed = true;
+                    }
                 }
             }
         }
@@ -713,7 +834,7 @@ function updateSelectionMessage() {
 function renderWordList() {
     wordListElement.innerHTML = "";
     
-    // Display words in alphabetical order for easier finding
+    // Display words in alphabetical order
     const sortedWords = [...gameState.words].sort();
     
     for (const word of sortedWords) {
@@ -764,17 +885,14 @@ function checkHighlightedWord() {
         return;
     }
     
-    // Get the word from selected cells in the order they were selected
+    // Get the word from selected cells
     const selectedWord = gameState.selectedCells.map(cell => cell.letter).join('');
-    
-    // Also check the reverse order
     const reversedWord = selectedWord.split('').reverse().join('');
     
-    // Check all possible words
+    // Check for exact matches
     let foundWord = null;
     let matchType = 'exact';
     
-    // First, check for exact matches
     for (const placedWord of gameState.placedWords) {
         if (!placedWord.found) {
             if (selectedWord === placedWord.word) {
@@ -785,24 +903,6 @@ function checkHighlightedWord() {
                 foundWord = placedWord;
                 matchType = 'reverse';
                 break;
-            }
-        }
-    }
-    
-    // If no exact match, check if selected cells CONTAIN any word
-    if (!foundWord) {
-        for (const placedWord of gameState.placedWords) {
-            if (!placedWord.found) {
-                // Check if the selected letters contain the word
-                if (selectedWord.includes(placedWord.word)) {
-                    foundWord = placedWord;
-                    matchType = 'contains';
-                    break;
-                } else if (reversedWord.includes(placedWord.word)) {
-                    foundWord = placedWord;
-                    matchType = 'reverse-contains';
-                    break;
-                }
             }
         }
     }
@@ -828,10 +928,6 @@ function checkHighlightedWord() {
         
         // Update score
         let wordScore = foundWord.word.length * 10;
-        if (matchType.includes('contains')) {
-            wordScore = Math.floor(wordScore * 0.7);
-        }
-        
         gameState.score += wordScore;
         gameState.foundWords++;
         
@@ -841,12 +937,10 @@ function checkHighlightedWord() {
         // Update word list
         renderWordList();
         
-        // Success message based on match type
+        // Success message
         let message = `Correct! Found "${foundWord.word}". You earned ${wordScore} points!`;
         if (matchType === 'reverse') {
             message = `Correct! Found "${foundWord.word}" backwards. You earned ${wordScore} points!`;
-        } else if (matchType.includes('contains')) {
-            message = `Good! Found "${foundWord.word}" (partial match). You earned ${wordScore} points!`;
         }
         
         messageElement.textContent = message;
@@ -858,7 +952,7 @@ function checkHighlightedWord() {
         }
     } else {
         // Incorrect word
-        messageElement.textContent = `"${selectedWord}" doesn't match any word. Try selecting letters in order.`;
+        messageElement.textContent = `"${selectedWord}" doesn't match any word. Try again!`;
         messageElement.style.color = "#ff5252";
         
         // Shake the selected cells
@@ -1299,6 +1393,17 @@ function createConfetti() {
         };
     }
 }
+
+// Add shake animation for incorrect answers
+const style = document.createElement('style');
+style.textContent = `
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+        20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
+`;
+document.head.appendChild(style);
 
 // Initialize the game when page loads
 document.addEventListener('DOMContentLoaded', initGame);
