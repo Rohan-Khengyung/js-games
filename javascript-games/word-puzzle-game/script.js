@@ -10,7 +10,6 @@ const gameState = {
     placedWords: [],
     grid: [],
     selectedCells: [],
-    isSelecting: false,
     hintsUsed: 0,
     maxHints: 3,
     showAllWords: false,
@@ -22,9 +21,7 @@ const gameState = {
         wordCount: 10,
         difficulty: 'easy',
         timeLimit: 300
-    },
-    // NEW: Track if we're in drag mode or click mode
-    selectionMode: 'click' // 'click' or 'drag'
+    }
 };
 
 // EXPANDED Word lists by difficulty with many more words
@@ -285,7 +282,6 @@ function startGame() {
     gameState.gamePaused = false;
     gameState.showAllWords = false;
     gameState.selectedCells = [];
-    gameState.selectionMode = 'click';
     
     // Update UI
     updateScore();
@@ -312,7 +308,7 @@ function startGame() {
     startTimer();
     
     // Initial message
-    messageElement.textContent = "Game started! Drag to select letters. Click 'Check Highlighted' when ready.";
+    messageElement.textContent = "Click letters one by one to select them. Click 'Check Highlighted' when ready.";
     messageElement.style.color = "#1a2980";
     hintTextElement.textContent = "";
 }
@@ -531,196 +527,125 @@ function renderGrid() {
             cell.dataset.x = i;
             cell.dataset.y = j;
             cell.dataset.letter = gameState.grid[i][j];
-            cell.style.width = cellSize;
-            cell.style.height = cellSize;
             
-            // Add click event listener for single-click selection
+            // Add click event listener ONLY (no drag events)
             cell.addEventListener('click', handleCellClick);
             
-            // Add drag event listeners
-            cell.addEventListener('mousedown', handleMouseDown);
-            cell.addEventListener('mouseover', handleMouseOver);
-            cell.addEventListener('mouseup', handleMouseUp);
-            
-            // For touch devices
-            cell.addEventListener('touchstart', handleTouchStart, { passive: false });
-            cell.addEventListener('touchmove', handleTouchMove, { passive: false });
-            cell.addEventListener('touchend', handleTouchEnd);
+            // Add touch event for mobile
+            cell.addEventListener('touchstart', handleCellClick, { passive: false });
             
             puzzleGridElement.appendChild(cell);
         }
     }
+    
+    // Add selection counter to the puzzle header
+    addSelectionCounter();
 }
 
-// Handle cell click (single click selection) - FIXED
+// Add selection counter to display
+function addSelectionCounter() {
+    const counterDiv = document.createElement('div');
+    counterDiv.className = 'selection-counter';
+    counterDiv.innerHTML = `
+        <span>Selected Letters:</span>
+        <span id="selected-count">0</span>
+        <span>| Current Word:</span>
+        <span id="current-word"></span>
+    `;
+    
+    // Insert after puzzle header
+    const puzzleHeader = document.querySelector('.puzzle-header');
+    puzzleHeader.parentNode.insertBefore(counterDiv, puzzleHeader.nextSibling);
+}
+
+// Update selection counter display
+function updateSelectionCounter() {
+    const countElement = document.getElementById('selected-count');
+    const wordElement = document.getElementById('current-word');
+    
+    if (countElement) {
+        countElement.textContent = gameState.selectedCells.length;
+    }
+    
+    if (wordElement) {
+        const selectedWord = gameState.selectedCells.map(cell => cell.letter).join('');
+        wordElement.textContent = selectedWord || '(none)';
+        wordElement.style.color = selectedWord ? '#1a2980' : '#999';
+        wordElement.style.fontWeight = selectedWord ? 'bold' : 'normal';
+    }
+}
+
+// Handle cell click - SIMPLE ONE-BY-ONE SELECTION
 function handleCellClick(e) {
     if (!gameState.gameActive || gameState.gamePaused) return;
     
     e.preventDefault();
     e.stopPropagation();
     
-    const cell = getCellFromEvent(e);
-    if (!cell) return;
+    const cellElement = e.currentTarget;
     
-    // Toggle cell selection
-    toggleCellSelection(cell);
+    // Get cell data
+    const cell = {
+        element: cellElement,
+        x: parseInt(cellElement.dataset.x),
+        y: parseInt(cellElement.dataset.y),
+        letter: cellElement.textContent
+    };
     
-    // Update message
-    updateSelectionMessage();
-}
-
-// Mouse event handlers for dragging
-let isDragging = false;
-let lastSelectedCell = null;
-
-function handleMouseDown(e) {
-    if (!gameState.gameActive || gameState.gamePaused) return;
+    // Check if cell is already selected
+    const isAlreadySelected = gameState.selectedCells.some(
+        selectedCell => selectedCell.x === cell.x && selectedCell.y === cell.y
+    );
     
-    e.preventDefault();
-    e.stopPropagation();
-    
-    isDragging = true;
-    gameState.selectionMode = 'drag';
-    
-    const cell = getCellFromEvent(e);
-    if (cell) {
-        // Clear previous selection and start new one
-        clearHighlight();
-        toggleCellSelection(cell);
-        lastSelectedCell = cell;
-    }
-}
-
-function handleMouseOver(e) {
-    if (!gameState.gameActive || gameState.gamePaused || !isDragging) return;
-    
-    e.preventDefault();
-    
-    const cell = getCellFromEvent(e);
-    if (cell && cell !== lastSelectedCell) {
-        toggleCellSelection(cell);
-        lastSelectedCell = cell;
-    }
-}
-
-function handleMouseUp(e) {
-    if (!gameState.gameActive || gameState.gamePaused) return;
-    
-    e.preventDefault();
-    isDragging = false;
-    lastSelectedCell = null;
-    
-    // Update message
-    updateSelectionMessage();
-}
-
-// Touch event handlers for mobile
-let touchStartX = null;
-let touchStartY = null;
-
-function handleTouchStart(e) {
-    if (!gameState.gameActive || gameState.gamePaused) return;
-    
-    e.preventDefault();
-    const touch = e.touches[0];
-    touchStartX = touch.clientX;
-    touchStartY = touch.clientY;
-    
-    gameState.selectionMode = 'drag';
-    
-    const cell = getCellFromEvent(e);
-    if (cell) {
-        // Clear previous selection and start new one
-        clearHighlight();
-        toggleCellSelection(cell);
-        lastSelectedCell = cell;
-    }
-}
-
-function handleTouchMove(e) {
-    if (!gameState.gameActive || gameState.gamePaused || touchStartX === null) return;
-    
-    e.preventDefault();
-    
-    const cell = getCellFromEvent(e);
-    if (cell && cell !== lastSelectedCell) {
-        toggleCellSelection(cell);
-        lastSelectedCell = cell;
-    }
-}
-
-function handleTouchEnd(e) {
-    if (!gameState.gameActive || gameState.gamePaused) return;
-    
-    e.preventDefault();
-    touchStartX = null;
-    touchStartY = null;
-    lastSelectedCell = null;
-    
-    // Update message
-    updateSelectionMessage();
-}
-
-// Get cell from event
-function getCellFromEvent(e) {
-    let clientX, clientY;
-    
-    if (e.type.includes('touch')) {
-        if (!e.touches || e.touches.length === 0) {
-            // Use changedTouches for touchend events
-            if (e.changedTouches && e.changedTouches.length > 0) {
-                clientX = e.changedTouches[0].clientX;
-                clientY = e.changedTouches[0].clientY;
-            } else {
-                return null;
-            }
-        } else {
-            clientX = e.touches[0].clientX;
-            clientY = e.touches[0].clientY;
+    if (isAlreadySelected) {
+        // Remove from selection
+        const index = gameState.selectedCells.findIndex(
+            selectedCell => selectedCell.x === cell.x && selectedCell.y === cell.y
+        );
+        if (index !== -1) {
+            gameState.selectedCells.splice(index, 1);
+            cellElement.classList.remove('selected');
+            cellElement.removeAttribute('data-order');
         }
     } else {
-        clientX = e.clientX;
-        clientY = e.clientY;
-    }
-    
-    const element = document.elementFromPoint(clientX, clientY);
-    if (element && element.classList.contains('grid-cell')) {
-        return {
-            element: element,
-            x: parseInt(element.dataset.x),
-            y: parseInt(element.dataset.y),
-            letter: element.textContent
-        };
-    }
-    
-    return null;
-}
-
-// Toggle cell selection - FIXED for both click and drag
-function toggleCellSelection(cell) {
-    const index = gameState.selectedCells.findIndex(c => c.x === cell.x && c.y === cell.y);
-    
-    if (index === -1) {
         // Add to selection
         gameState.selectedCells.push(cell);
-        cell.element.classList.add('highlighted');
-    } else {
-        // Remove from selection (only in click mode, not drag mode)
-        if (gameState.selectionMode === 'click') {
-            gameState.selectedCells.splice(index, 1);
-            cell.element.classList.remove('highlighted');
-        }
+        cellElement.classList.add('selected');
+        cellElement.setAttribute('data-order', gameState.selectedCells.length);
     }
+    
+    // Update all cell order indicators
+    updateCellOrderIndicators();
+    
+    // Update selection counter
+    updateSelectionCounter();
+    
+    // Update message
+    updateSelectionMessage();
+}
+
+// Update cell order indicators
+function updateCellOrderIndicators() {
+    // First remove all order indicators
+    const allCells = document.querySelectorAll('.grid-cell');
+    allCells.forEach(cell => {
+        cell.removeAttribute('data-order');
+    });
+    
+    // Then add order indicators to selected cells
+    gameState.selectedCells.forEach((cell, index) => {
+        cell.element.setAttribute('data-order', index + 1);
+    });
 }
 
 // Update selection message
 function updateSelectionMessage() {
     if (gameState.selectedCells.length === 0) {
-        messageElement.textContent = "Select letters by dragging. Click 'Check Highlighted' when ready.";
+        messageElement.textContent = "Click letters one by one to select them. Click 'Check Highlighted' when ready.";
         messageElement.style.color = "#1a2980";
     } else {
         const selectedWord = gameState.selectedCells.map(cell => cell.letter).join('');
-        messageElement.textContent = `${gameState.selectedCells.length} letters selected: "${selectedWord}". Click 'Check Highlighted' to verify.`;
+        messageElement.textContent = `Selected ${gameState.selectedCells.length} letters: "${selectedWord}". Click 'Check Highlighted' to verify.`;
         messageElement.style.color = "#1a2980";
     }
 }
@@ -752,17 +677,22 @@ function renderWordList() {
 function clearHighlight() {
     if (!gameState.gameActive || gameState.gamePaused) return;
     
-    for (const cell of gameState.selectedCells) {
-        if (cell && cell.element) {
-            cell.element.classList.remove('highlighted');
-        }
-    }
+    // Remove selection from all cells
+    const selectedCells = document.querySelectorAll('.grid-cell.selected');
+    selectedCells.forEach(cell => {
+        cell.classList.remove('selected');
+        cell.removeAttribute('data-order');
+    });
+    
+    // Clear selection array
     gameState.selectedCells = [];
-    gameState.selectionMode = 'click';
+    
+    // Update counter and message
+    updateSelectionCounter();
     updateSelectionMessage();
 }
 
-// Check highlighted word - Now accepts ANY selection pattern
+// Check highlighted word
 function checkHighlightedWord() {
     if (!gameState.gameActive || gameState.gamePaused) return;
     
@@ -778,7 +708,7 @@ function checkHighlightedWord() {
     // Also check the reverse order
     const reversedWord = selectedWord.split('').reverse().join('');
     
-    // Check all possible words (forward, backward, and any substring)
+    // Check all possible words
     let foundWord = null;
     let matchType = 'exact';
     
@@ -833,7 +763,7 @@ function checkHighlightedWord() {
         // Highlight all cells of the actual word location
         const { word, startX, startY, direction } = foundWord;
         
-        // Clear current highlighting
+        // Clear current selection
         clearHighlight();
         
         // Highlight the actual word cells
@@ -1113,7 +1043,6 @@ function resetGame() {
         gameState.hintsUsed = 0;
         gameState.showAllWords = false;
         gameState.selectedCells = [];
-        gameState.selectionMode = 'click';
         
         // Update UI
         updateScore();
@@ -1131,7 +1060,7 @@ function resetGame() {
         showWordsBtn.innerHTML = '<i class="fas fa-eye"></i> Show Words';
         
         // Message
-        messageElement.textContent = "New puzzle generated! Drag to select letters.";
+        messageElement.textContent = "New puzzle generated! Click letters one by one to select them.";
         messageElement.style.color = "#1a2980";
         hintTextElement.textContent = "";
     }

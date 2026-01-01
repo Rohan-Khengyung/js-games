@@ -624,7 +624,7 @@ header h1 {
 
 .puzzle-grid {
     display: inline-grid;
-    gap: 1px;
+    gap: 2px;
     background-color: #ddd;
     padding: 2px;
     border-radius: 6px;
@@ -652,6 +652,7 @@ header h1 {
     border-radius: 3px;
 }
 
+/* Grid cell with click selection */
 .grid-cell {
     display: flex;
     align-items: center;
@@ -667,6 +668,7 @@ header h1 {
     min-height: 28px;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
+    border: 2px solid transparent;
 }
 
 .grid-cell:hover {
@@ -674,21 +676,25 @@ header h1 {
     transform: scale(1.05);
 }
 
-.grid-cell.highlighted {
+.grid-cell.selected {
     background-color: #ffcc00;
     color: #333;
     z-index: 1;
+    border: 2px solid #ff9900;
+    transform: scale(1.05);
 }
 
 .grid-cell.found {
     background-color: #4CAF50;
     color: white;
+    border: 2px solid #388e3c;
 }
 
 .grid-cell.hint {
     background-color: #26d0ce;
     color: white;
     animation: hint-pulse 1.5s infinite;
+    border: 2px solid #1a2980;
 }
 
 @keyframes hint-pulse {
@@ -1046,6 +1052,12 @@ footer {
         font-size: 1.3rem;
     }
     
+    .grid-cell.selected::after {
+        width: 20px;
+        height: 20px;
+        font-size: 0.9rem;
+    }
+    
     .grid-size {
         font-size: 1rem;
     }
@@ -1088,6 +1100,12 @@ footer {
         min-width: 24px;
         min-height: 24px;
         font-size: 0.9rem;
+    }
+    
+    .grid-cell.selected::after {
+        width: 14px;
+        height: 14px;
+        font-size: 0.6rem;
     }
     
     .setting-info {
@@ -1133,6 +1151,12 @@ footer {
         min-height: 25px;
         font-size: 0.9rem;
     }
+    
+    .grid-cell.selected::after {
+        width: 16px;
+        height: 16px;
+        font-size: 0.7rem;
+    }
 }
 
 /* Prevent text zoom on mobile */
@@ -1148,4 +1172,30 @@ button,
 .word-item {
     -webkit-tap-highlight-color: transparent;
     touch-action: manipulation;
+}
+
+/* Selection counter */
+.selection-counter {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #f8f9ff;
+    border-radius: 8px;
+    border: 2px solid #e0e6ff;
+}
+
+.selection-counter span {
+    font-weight: 600;
+    color: #1a2980;
+    font-size: 0.9rem;
+}
+
+#selected-count {
+    font-weight: 700;
+    font-size: 1.2rem;
+    color: #ff9900;
+    font-family: 'Roboto Mono', monospace;
 }
