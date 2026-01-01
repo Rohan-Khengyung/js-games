@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Search Puzzle</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-search"></i> Word Search Puzzle</h1>
+            <p class="subtitle">Find and highlight all the hidden words in the grid!</p>
+        </header>
+
+        <main class="game-container">
+            <div id="start-screen" class="start-screen">
+                <div class="start-content">
+                    <h2><i class="fas fa-play-circle"></i> Start New Game</h2>
+                    <p>Configure your game settings below, then click Start Game to begin!</p>
+                    
+                    <div class="game-settings">
+                        <div class="setting-group">
+                            <h3><i class="fas fa-sliders-h"></i> Game Settings</h3>
+                            
+                            <div class="setting">
+                                <label for="grid-size">
+                                    <i class="fas fa-th-large"></i> Grid Size
+                                </label>
+                                <select id="grid-size">
+                                    <option value="10">10×10 (Easy)</option>
+                                    <option value="12">12×12 (Medium)</option>
+                                    <option value="15">15×15 (Hard)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="setting">
+                                <label for="word-count">
+                                    <i class="fas fa-list-ol"></i> Word Count
+                                </label>
+                                <select id="word-count">
+                                    <option value="8">8 Words</option>
+                                    <option value="10" selected>10 Words</option>
+                                    <option value="12">12 Words</option>
+                                    <option value="15">15 Words</option>
+                                </select>
+                            </div>
+                            
+                            <div class="setting">
+                                <label for="difficulty">
+                                    <i class="fas fa-chart-line"></i> Difficulty
+                                </label>
+                                <select id="difficulty">
+                                    <option value="easy" selected>Easy (Common Words)</option>
+                                    <option value="medium">Medium (Longer Words)</option>
+                                    <option value="hard">Hard (Complex Words)</option>
+                                </select>
+                            </div>
+                            
+                            <div class="setting">
+                                <label for="time-limit">
+                                    <i class="fas fa-clock"></i> Time Limit (seconds)
+                                </label>
+                                <select id="time-limit">
+                                    <option value="180">180s (3 minutes)</option>
+                                    <option value="300" selected>300s (5 minutes)</option>
+                                    <option value="420">420s (7 minutes)</option>
+                                    <option value="600">600s (10 minutes)</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="setting-group">
+                            <h3><i class="fas fa-trophy"></i> High Scores</h3>
+                            <div id="high-scores" class="high-scores">
+                                <!-- High scores will be loaded here -->
+                                <div class="loading-scores">Loading scores...</div>
+                            </div>
+                            
+                            <h3><i class="fas fa-info-circle"></i> How to Play</h3>
+                            <div class="instructions-list">
+                                <div class="instruction">
+                                    <i class="fas fa-mouse-pointer"></i>
+                                    <span>Click and drag to highlight words in the grid</span>
+                                </div>
+                                <div class="instruction">
+                                    <i class="fas fa-arrows-alt"></i>
+                                    <span>Words can be horizontal, vertical, or diagonal</span>
+                                </div>
+                                <div class="instruction">
+                                    <i class="fas fa-exchange-alt"></i>
+                                    <span>Words can be forwards or backwards</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="start-buttons">
+                        <button id="start-game-btn" class="btn start-game-btn">
+                            <i class="fas fa-play"></i> Start Game
+                        </button>
+                        <button id="clear-scores-btn" class="btn clear-scores-btn">
+                            <i class="fas fa-trash"></i> Clear Scores
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div id="game-screen" class="game-screen" style="display: none;">
+                <div class="game-info">
+                    <div class="stats">
+                        <div class="stat">
+                            <span class="stat-label">Score</span>
+                            <span id="score" class="stat-value">0</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Found</span>
+                            <span id="found" class="stat-value">0/10</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Time</span>
+                            <span id="timer" class="stat-value">05:00</span>
+                        </div>
+                        <div class="stat">
+                            <span class="stat-label">Hints</span>
+                            <span id="hints-left" class="stat-value">3/3</span>
+                        </div>
+                    </div>
+                    
+                    <div class="controls">
+                        <button id="pause-btn" class="btn pause-btn">
+                            <i class="fas fa-pause"></i> Pause
+                        </button>
+                        <button id="hint-btn" class="btn hint-btn">
+                            <i class="fas fa-lightbulb"></i> Hint
+                        </button>
+                        <button id="show-words-btn" class="btn show-btn">
+                            <i class="fas fa-eye"></i> Show Words
+                        </button>
+                        <button id="reset-btn" class="btn reset-btn">
+                            <i class="fas fa-redo"></i> New Puzzle
+                        </button>
+                    </div>
+                </div>
+
+                <div class="puzzle-section">
+                    <div class="word-list-container">
+                        <h3><i class="fas fa-list"></i> Words to Find</h3>
+                        <div id="word-list" class="word-list">
+                            <!-- Words will be populated by JavaScript -->
+                        </div>
+                        <div class="current-settings">
+                            <h4><i class="fas fa-cog"></i> Current Settings</h4>
+                            <div class="settings-info">
+                                <div class="setting-info">
+                                    <span class="setting-label">Grid:</span>
+                                    <span id="current-grid-size" class="setting-value">10×10</span>
+                                </div>
+                                <div class="setting-info">
+                                    <span class="setting-label">Words:</span>
+                                    <span id="current-word-count" class="setting-value">10</span>
+                                </div>
+                                <div class="setting-info">
+                                    <span class="setting-label">Difficulty:</span>
+                                    <span id="current-difficulty" class="setting-value">Easy</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="puzzle-main">
+                        <div class="puzzle-header">
+                            <h3><i class="fas fa-grid"></i> Word Search Grid</h3>
+                            <div class="grid-size">
+                                <span id="grid-size-display">Grid: 10×10</span>
+                            </div>
+                        </div>
+                        <div id="puzzle-grid" class="puzzle-grid">
+                            <!-- Puzzle grid will be generated by JavaScript -->
+                        </div>
+                        <div class="puzzle-controls">
+                            <button id="clear-highlight-btn" class="btn clear-btn">
+                                <i class="fas fa-eraser"></i> Clear Highlight
+                            </button>
+                            <button id="check-word-btn" class="btn check-btn">
+                                <i class="fas fa-check"></i> Check Highlighted
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="game-status">
+                    <div id="message" class="message">Click and drag to highlight words in the grid!</div>
+                    <div id="hint-text" class="hint-text"></div>
+                </div>
+
+                <div class="game-actions">
+                    <button id="back-to-menu-btn" class="btn menu-btn">
+                        <i class="fas fa-home"></i> Back to Menu
+                    </button>
+                    <button id="restart-game-btn" class="btn restart-btn">
+                        <i class="fas fa-sync-alt"></i> Restart Game
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <footer>
+            <p>Word Search Puzzle &copy; <span id="current-year"></span> | Fully Responsive | Created with HTML, CSS & JavaScript</p>
+        </footer>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
