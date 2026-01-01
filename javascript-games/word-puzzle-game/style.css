@@ -14,11 +14,13 @@ body {
     align-items: center;
     padding: 10px;
     overflow-x: hidden;
+    -webkit-tap-highlight-color: transparent;
+    -webkit-text-size-adjust: 100%;
 }
 
 .container {
     width: 100%;
-    max-width: 1200px;
+    max-width: 1400px;
     background-color: rgba(255, 255, 255, 0.95);
     border-radius: 15px;
     box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
@@ -394,7 +396,8 @@ header h1 {
     gap: 6px;
     transition: all 0.3s ease;
     box-shadow: 0 3px 6px rgba(0, 0, 0, 0.08);
-    min-height: 44px; /* Better touch target */
+    min-height: 44px;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .btn:hover {
@@ -517,6 +520,7 @@ header h1 {
     display: flex;
     align-items: center;
     justify-content: center;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .word-item:hover {
@@ -595,6 +599,8 @@ header h1 {
     border: 2px solid #f0f4ff;
     order: 1;
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .puzzle-header {
@@ -622,34 +628,32 @@ header h1 {
     align-self: flex-start;
 }
 
+/* Grid Container for responsive scrolling */
+.grid-container {
+    width: 100%;
+    overflow: auto;
+    margin: 10px 0;
+    padding: 5px;
+    -webkit-overflow-scrolling: touch;
+    min-height: 200px;
+    display: flex;
+    justify-content: center;
+}
+
+/* Responsive Grid Styles */
 .puzzle-grid {
     display: inline-grid;
     gap: 2px;
     background-color: #ddd;
     padding: 2px;
     border-radius: 6px;
-    margin-bottom: 15px;
+    margin-bottom: 10px;
     user-select: none;
     border: 2px solid #1a2980;
     align-self: center;
-    max-width: 100%;
-    overflow: auto;
-    -webkit-overflow-scrolling: touch;
-}
-
-.puzzle-grid::-webkit-scrollbar {
-    height: 6px;
-    width: 6px;
-}
-
-.puzzle-grid::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 3px;
-}
-
-.puzzle-grid::-webkit-scrollbar-thumb {
-    background: #1a2980;
-    border-radius: 3px;
+    justify-self: center;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 /* Grid cell with click selection */
@@ -668,12 +672,11 @@ header h1 {
     min-height: 28px;
     touch-action: manipulation;
     -webkit-tap-highlight-color: transparent;
-    border: 2px solid transparent;
+    border: 1px solid #e0e0e0;
 }
 
 .grid-cell:hover {
     background-color: #f0f4ff;
-    transform: scale(1.05);
 }
 
 .grid-cell.selected {
@@ -681,7 +684,23 @@ header h1 {
     color: #333;
     z-index: 1;
     border: 2px solid #ff9900;
-    transform: scale(1.05);
+}
+
+.grid-cell.selected::after {
+    content: attr(data-order);
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: #ff9900;
+    color: white;
+    font-size: 0.6rem;
+    font-weight: bold;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .grid-cell.found {
@@ -703,11 +722,47 @@ header h1 {
     100% { background-color: #26d0ce; }
 }
 
+/* Selection counter */
+.selection-counter {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: #f8f9ff;
+    border-radius: 8px;
+    border: 2px solid #e0e6ff;
+    flex-wrap: wrap;
+    font-size: 0.9rem;
+}
+
+.selection-counter span {
+    font-weight: 600;
+    color: #1a2980;
+}
+
+#selected-count {
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: #ff9900;
+    font-family: 'Roboto Mono', monospace;
+}
+
+#current-word {
+    font-weight: 700;
+    color: #1a2980;
+    font-family: 'Roboto Mono', monospace;
+    min-width: 60px;
+    text-align: center;
+}
+
 .puzzle-controls {
     display: flex;
     flex-direction: column;
     gap: 10px;
     justify-content: center;
+    margin-top: 10px;
 }
 
 .puzzle-controls .btn {
@@ -839,6 +894,90 @@ footer {
     justify-content: center;
 }
 
+/* Responsive Grid Cell Sizes */
+/* Mobile-first: smallest grid cells */
+.grid-cell {
+    min-width: 24px;
+    min-height: 24px;
+    font-size: 0.9rem;
+}
+
+/* Tablet - slightly larger */
+@media (min-width: 600px) {
+    .grid-cell {
+        min-width: 28px;
+        min-height: 28px;
+        font-size: 1rem;
+    }
+}
+
+/* Small desktop */
+@media (min-width: 768px) {
+    .grid-cell {
+        min-width: 32px;
+        min-height: 32px;
+        font-size: 1.1rem;
+    }
+}
+
+/* Desktop */
+@media (min-width: 1024px) {
+    .grid-cell {
+        min-width: 35px;
+        min-height: 35px;
+        font-size: 1.2rem;
+    }
+}
+
+/* Large desktop */
+@media (min-width: 1200px) {
+    .grid-cell {
+        min-width: 40px;
+        min-height: 40px;
+        font-size: 1.3rem;
+    }
+}
+
+/* Smallest phones */
+@media (max-width: 360px) {
+    .grid-cell {
+        min-width: 22px;
+        min-height: 22px;
+        font-size: 0.8rem;
+    }
+}
+
+/* Very large grid (15×15) specific adjustments */
+.grid-size-15 .grid-cell {
+    min-width: 20px !important;
+    min-height: 20px !important;
+    font-size: 0.8rem !important;
+}
+
+@media (min-width: 600px) {
+    .grid-size-15 .grid-cell {
+        min-width: 24px !important;
+        min-height: 24px !important;
+        font-size: 0.9rem !important;
+    }
+}
+
+@media (min-width: 768px) {
+    .grid-size-15 .grid-cell {
+        min-width: 28px !important;
+        min-height: 28px !important;
+        font-size: 1rem !important;
+    }
+}
+
+@media (min-width: 1024px) {
+    .grid-size-15 .grid-cell {
+        min-width: 32px !important;
+        min-height: 32px !important;
+        font-size: 1.1rem !important;
+    }
+}
+
 /* Tablet Styles */
 @media (min-width: 600px) {
     .container {
@@ -916,12 +1055,6 @@ footer {
     
     .word-list {
         grid-template-columns: 1fr;
-    }
-    
-    .grid-cell {
-        min-width: 32px;
-        min-height: 32px;
-        font-size: 1.1rem;
     }
     
     .puzzle-controls {
@@ -1046,12 +1179,6 @@ footer {
         font-size: 1.2rem;
     }
     
-    .grid-cell {
-        min-width: 40px;
-        min-height: 40px;
-        font-size: 1.3rem;
-    }
-    
     .grid-cell.selected::after {
         width: 20px;
         height: 20px;
@@ -1096,18 +1223,6 @@ footer {
         grid-template-columns: 1fr;
     }
     
-    .grid-cell {
-        min-width: 24px;
-        min-height: 24px;
-        font-size: 0.9rem;
-    }
-    
-    .grid-cell.selected::after {
-        width: 14px;
-        height: 14px;
-        font-size: 0.6rem;
-    }
-    
     .setting-info {
         font-size: 0.8rem;
     }
@@ -1146,17 +1261,31 @@ footer {
         max-height: 120px;
     }
     
-    .grid-cell {
-        min-width: 25px;
-        min-height: 25px;
-        font-size: 0.9rem;
-    }
-    
     .grid-cell.selected::after {
         width: 16px;
         height: 16px;
         font-size: 0.7rem;
     }
+}
+
+/* Scrollbar styling */
+.grid-container::-webkit-scrollbar {
+    height: 8px;
+    width: 8px;
+}
+
+.grid-container::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.grid-container::-webkit-scrollbar-thumb {
+    background: #1a2980;
+    border-radius: 4px;
+}
+
+.grid-container::-webkit-scrollbar-thumb:hover {
+    background: #0e1a66;
 }
 
 /* Prevent text zoom on mobile */
@@ -1174,28 +1303,15 @@ button,
     touch-action: manipulation;
 }
 
-/* Selection counter */
-.selection-counter {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 15px;
-    padding: 10px;
-    background: #f8f9ff;
-    border-radius: 8px;
-    border: 2px solid #e0e6ff;
+/* Add shake animation for incorrect answers */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
 }
 
-.selection-counter span {
-    font-weight: 600;
-    color: #1a2980;
-    font-size: 0.9rem;
-}
-
-#selected-count {
-    font-weight: 700;
-    font-size: 1.2rem;
-    color: #ff9900;
-    font-family: 'Roboto Mono', monospace;
+/* Confetti animation */
+@keyframes confetti-fall {
+    0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(360deg); opacity: 0; }
 }

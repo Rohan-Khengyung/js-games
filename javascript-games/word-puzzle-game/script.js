@@ -24,7 +24,7 @@ const gameState = {
     }
 };
 
-// EXPANDED Word lists by difficulty with many more words
+// Word lists by difficulty
 const wordLists = {
     easy: [
         "WORD", "GAME", "PLAY", "FIND", "GRID", "LIST", "TIME", "LOVE", "BOOK", "HOME",
@@ -34,8 +34,7 @@ const wordLists = {
         "GOOD", "BAD", "HAPPY", "SAD", "RICH", "POOR", "WISE", "FOOL", "KIND", "MEAN",
         "CITY", "TOWN", "ROAD", "PATH", "DOOR", "WINDOW", "TABLE", "CHAIR", "BED", "SOFA",
         "FISH", "BIRD", "CAT", "DOG", "LION", "BEAR", "DEER", "WOLF", "FOX", "RABBIT",
-        "APPLE", "PEAR", "GRAPE", "BANANA", "MANGO", "LEMON", "PEACH", "BERRY", "MELON", "KIWI",
-        "EARTH", "MARS", "VENUS", "JUPITER", "SATURN", "PLUTO", "COMET", "STAR", "MOON", "SUN"
+        "APPLE", "PEAR", "GRAPE", "BANANA", "MANGO", "LEMON", "PEACH", "BERRY", "MELON", "KIWI"
     ],
     medium: [
         "PUZZLE", "SEARCH", "CHALLENGE", "SOLUTION", "HORIZONTAL", "VERTICAL", "DIAGONAL",
@@ -45,10 +44,7 @@ const wordLists = {
         "CELEBRATION", "KNOWLEDGE", "IMAGINATION", "MAGNIFICENT", "OPPORTUNITY", "REMARKABLE",
         "SIGNIFICANT", "TREMENDOUS", "WONDERFUL", "LIBRARY", "SCHOOL", "COLLEGE", "UNIVERSITY",
         "TEACHER", "STUDENT", "PENCIL", "PAPER", "NOTEBOOK", "COMPUTER", "KEYBOARD", "MONITOR",
-        "GARDEN", "FLOWER", "FOREST", "RIVER", "VALLEY", "DESERT", "ISLAND", "BEACH", "CLOUD",
-        "WEATHER", "SEASON", "WINTER", "SUMMER", "SPRING", "AUTUMN", "HOLIDAY", "FESTIVAL",
-        "FAMILY", "FRIEND", "PARENT", "CHILD", "SIBLING", "COUSIN", "GRANDPA", "GRANDMA",
-        "MORNING", "EVENING", "NIGHT", "MIDNIGHT", "SUNRISE", "SUNSET", "TWILIGHT", "DAWN"
+        "GARDEN", "FLOWER", "FOREST", "RIVER", "VALLEY", "DESERT", "ISLAND", "BEACH", "CLOUD"
     ],
     hard: [
         "DETERMINATION", "ENTHUSIASTIC", "EXTRAORDINARY", "FANTASTIC", "KNOWLEDGEABLE",
@@ -59,10 +55,7 @@ const wordLists = {
         "CONSTITUTION", "REVOLUTION", "EVOLUTION", "INVENTION", "DISCOVERY", "EXPLORATION",
         "COMMUNICATION", "TRANSPORTATION", "EDUCATION", "INFORMATION", "TELECOMMUNICATION",
         "INTERNATIONAL", "MULTINATIONAL", "ORGANIZATION", "INSTITUTION", "ASSOCIATION",
-        "COOPERATION", "COLLABORATION", "PARTICIPATION", "CELEBRATION", "CONGRATULATIONS",
-        "ENVIRONMENTAL", "SUSTAINABLE", "RENEWABLE", "BIODIVERSITY", "CONSERVATION",
-        "PHOTOGRAPHY", "CINEMATOGRAPHY", "ILLUSTRATION", "ANIMATION", "PRODUCTION",
-        "PERFORMANCE", "EXHIBITION", "COMPETITION", "CHAMPIONSHIP", "TOURNAMENT"
+        "COOPERATION", "COLLABORATION", "PARTICIPATION", "CELEBRATION", "CONGRATULATIONS"
     ]
 };
 
@@ -84,6 +77,8 @@ const currentGridSize = document.getElementById('current-grid-size');
 const currentWordCount = document.getElementById('current-word-count');
 const currentDifficulty = document.getElementById('current-difficulty');
 const highScoresElement = document.getElementById('high-scores');
+const selectedCountElement = document.getElementById('selected-count');
+const currentWordElement = document.getElementById('current-word');
 
 // Control buttons
 const pauseBtn = document.getElementById('pause-btn');
@@ -127,6 +122,55 @@ function initGame() {
     // Initialize with start screen and load high scores
     showStartScreen();
     loadHighScores();
+    
+    // Handle window resize for responsive grid
+    window.addEventListener('resize', handleResize);
+}
+
+// Handle window resize
+function handleResize() {
+    if (gameState.gameActive && puzzleGridElement.children.length > 0) {
+        adjustGridSize();
+    }
+}
+
+// Adjust grid cell sizes based on screen size and grid size
+function adjustGridSize() {
+    const gridCells = document.querySelectorAll('.grid-cell');
+    const gridSize = gameState.gridSize;
+    const containerWidth = document.querySelector('.grid-container').offsetWidth;
+    const maxCellSize = Math.floor(containerWidth / gridSize) - 4; // -4 for gap and border
+    
+    // Set base size
+    let cellSize = Math.min(maxCellSize, 40); // Max 40px
+    let fontSize = '1rem';
+    
+    // Adjust for different grid sizes
+    if (gridSize === 15) {
+        cellSize = Math.min(maxCellSize, 30);
+        fontSize = '0.9rem';
+    } else if (gridSize === 12) {
+        cellSize = Math.min(maxCellSize, 35);
+        fontSize = '1rem';
+    } else if (gridSize === 10) {
+        cellSize = Math.min(maxCellSize, 40);
+        fontSize = '1.1rem';
+    }
+    
+    // Ensure minimum size
+    cellSize = Math.max(cellSize, 20);
+    
+    // Apply styles
+    gridCells.forEach(cell => {
+        cell.style.width = `${cellSize}px`;
+        cell.style.height = `${cellSize}px`;
+        cell.style.fontSize = fontSize;
+        cell.style.minWidth = `${cellSize}px`;
+        cell.style.minHeight = `${cellSize}px`;
+    });
+    
+    // Update grid class for CSS adjustments
+    puzzleGridElement.className = `puzzle-grid grid-size-${gridSize}`;
 }
 
 // Load high scores from localStorage
@@ -143,7 +187,6 @@ function loadHighScores() {
 // Save high score to localStorage
 function saveHighScore(score, settings) {
     try {
-        // Get existing scores or create empty array
         let scores = [];
         const storedScores = localStorage.getItem(STORAGE_KEY);
         
@@ -188,7 +231,6 @@ function saveHighScore(score, settings) {
         // Update display
         displayHighScores(scores);
         
-        console.log('Score saved successfully:', newScore);
         return true;
     } catch (error) {
         console.error('Error saving high score:', error);
@@ -288,6 +330,7 @@ function startGame() {
     updateFoundWords();
     updateHintsLeft();
     updateTimerDisplay();
+    updateSelectionCounter();
     
     // Enable/disable buttons
     pauseBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
@@ -304,11 +347,14 @@ function startGame() {
     // Generate puzzle
     generatePuzzle();
     
+    // Adjust grid size
+    setTimeout(adjustGridSize, 100);
+    
     // Start timer
     startTimer();
     
     // Initial message
-    messageElement.textContent = "Click letters one by one to select them. Click 'Check Highlighted' when ready.";
+    messageElement.textContent = "Click letters one by one to select them. Click 'Check' when ready.";
     messageElement.style.color = "#1a2980";
     hintTextElement.textContent = "";
 }
@@ -340,7 +386,6 @@ function generatePuzzle() {
         );
         
         if (fittingWords.length === 0) {
-            // If no fitting words, add shorter fallback words
             const fallbackWords = ["GAME", "WORD", "FIND", "PLAY", "GRID", "FUN", "TIME", "LOVE", "BOOK", "HOME"];
             const availableFallback = fallbackWords.filter(word => 
                 word.length <= maxWordLength && 
@@ -387,29 +432,7 @@ function generatePuzzle() {
     }
     
     // Place words in the grid
-    const success = placeWordsInGrid();
-    
-    if (!success) {
-        // If word placement failed, regenerate with smaller words
-        console.log("Word placement failed, regenerating with smaller words...");
-        // Remove longest words that couldn't be placed
-        while (gameState.words.length > 0 && gameState.words[0].length > Math.floor(gameState.gridSize * 0.8)) {
-            gameState.words.shift();
-        }
-        
-        // Try again with remaining words
-        if (gameState.words.length > 0) {
-            // Reinitialize grid
-            for (let i = 0; i < gameState.gridSize; i++) {
-                gameState.grid[i] = [];
-                for (let j = 0; j < gameState.gridSize; j++) {
-                    gameState.grid[i][j] = "";
-                }
-            }
-            gameState.placedWords = [];
-            placeWordsInGrid();
-        }
-    }
+    placeWordsInGrid();
     
     // Fill empty cells with random letters
     fillEmptyCells();
@@ -421,17 +444,17 @@ function generatePuzzle() {
     renderWordList();
 }
 
-// Place words in the grid - IMPROVED VERSION
+// Place words in the grid
 function placeWordsInGrid() {
     const directions = [
-        { x: 1, y: 0, name: 'horizontal' },   // Horizontal (left to right)
-        { x: 0, y: 1, name: 'vertical' },     // Vertical (top to bottom)
-        { x: 1, y: 1, name: 'diagonal-down-right' },   // Diagonal down-right
-        { x: 1, y: -1, name: 'diagonal-up-right' },    // Diagonal up-right
-        { x: -1, y: 0, name: 'horizontal-reverse' },   // Horizontal (right to left)
-        { x: 0, y: -1, name: 'vertical-reverse' },     // Vertical (bottom to top)
-        { x: -1, y: -1, name: 'diagonal-up-left' },    // Diagonal up-left
-        { x: -1, y: 1, name: 'diagonal-down-left' }    // Diagonal down-left
+        { x: 1, y: 0, name: 'horizontal' },
+        { x: 0, y: 1, name: 'vertical' },
+        { x: 1, y: 1, name: 'diagonal-down-right' },
+        { x: 1, y: -1, name: 'diagonal-up-right' },
+        { x: -1, y: 0, name: 'horizontal-reverse' },
+        { x: 0, y: -1, name: 'vertical-reverse' },
+        { x: -1, y: -1, name: 'diagonal-up-left' },
+        { x: -1, y: 1, name: 'diagonal-down-left' }
     ];
     
     // Track which words couldn't be placed
@@ -444,7 +467,7 @@ function placeWordsInGrid() {
     for (const word of sortedWords) {
         let placed = false;
         let attempts = 0;
-        const maxAttempts = 2000; // Increased attempts for better placement
+        const maxAttempts = 1000;
         
         // Shuffle directions for each word to get more variety
         const shuffledDirections = [...directions].sort(() => Math.random() - 0.5);
@@ -527,52 +550,29 @@ function placeWordsInGrid() {
         }
         
         if (!placed) {
-            console.warn(`Could not place word: ${word} after ${maxAttempts} attempts`);
             unplacedWords.push(word);
-            
-            // If we can't place this word, try replacing with a shorter word
-            if (unplacedWords.length > 2) {
-                // Too many unplaced words, return failure
-                return false;
-            }
         }
     }
     
-    // Check if all words were placed
+    // If we have unplaced words, try to add them as shorter words
     if (unplacedWords.length > 0) {
-        console.log(`Could not place ${unplacedWords.length} words:`, unplacedWords);
-        
-        // Try to replace unplaced words with shorter alternatives
         for (const unplacedWord of unplacedWords) {
-            const shorterWords = gameState.words.filter(w => 
-                w !== unplacedWord && 
-                w.length <= unplacedWord.length &&
+            // Try to add shorter words instead
+            const shorterWord = gameState.words.find(w => 
+                w.length < unplacedWord.length && 
+                w !== unplacedWord &&
                 !gameState.placedWords.some(pw => pw.word === w)
             );
             
-            if (shorterWords.length > 0) {
-                const replacement = shorterWords[0];
-                console.log(`Replacing ${unplacedWord} with ${replacement}`);
-                
-                // Find and remove the unplaced word from the word list
-                const wordIndex = gameState.words.indexOf(unplacedWord);
-                if (wordIndex > -1) {
-                    gameState.words.splice(wordIndex, 1);
+            if (shorterWord) {
+                // Remove the unplaced word and add the shorter one
+                const index = gameState.words.indexOf(unplacedWord);
+                if (index > -1) {
+                    gameState.words.splice(index, 1);
                 }
-                
-                // Add the replacement
-                gameState.words.push(replacement);
-                
-                // Try to place the replacement word
-                // This is a simplified retry - in a full implementation, 
-                // you'd want to retry the entire placement process
             }
         }
-        
-        return false;
     }
-    
-    return true;
 }
 
 // Fill empty cells with random letters
@@ -594,27 +594,6 @@ function renderGrid() {
     // Update grid size in CSS
     puzzleGridElement.style.gridTemplateColumns = `repeat(${gameState.gridSize}, 1fr)`;
     
-    // Calculate cell size based on grid size for responsiveness
-    let cellSize;
-    if (gameState.gridSize <= 10) {
-        cellSize = "40px";
-    } else if (gameState.gridSize <= 12) {
-        cellSize = "35px";
-    } else {
-        cellSize = "30px";
-    }
-    
-    // Adjust for mobile
-    if (window.innerWidth < 600) {
-        if (gameState.gridSize <= 10) {
-            cellSize = "32px";
-        } else if (gameState.gridSize <= 12) {
-            cellSize = "28px";
-        } else {
-            cellSize = "24px";
-        }
-    }
-    
     // Create cells
     for (let i = 0; i < gameState.gridSize; i++) {
         for (let j = 0; j < gameState.gridSize; j++) {
@@ -625,68 +604,35 @@ function renderGrid() {
             cell.dataset.y = j;
             cell.dataset.letter = gameState.grid[i][j];
             
-            // Add click event listener ONLY (no drag events)
+            // Add click event listener
             cell.addEventListener('click', handleCellClick);
             
             // Add touch event for mobile
-            cell.addEventListener('touchstart', handleCellClick, { passive: false });
+            cell.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                handleCellClick({ currentTarget: cell });
+            }, { passive: false });
             
             puzzleGridElement.appendChild(cell);
         }
     }
     
-    // Add selection counter to the puzzle header
-    addSelectionCounter();
+    // Adjust grid size after rendering
+    setTimeout(adjustGridSize, 50);
 }
 
-// Add selection counter to display
-function addSelectionCounter() {
-    const counterDiv = document.createElement('div');
-    counterDiv.className = 'selection-counter';
-    counterDiv.innerHTML = `
-        <span>Selected Letters:</span>
-        <span id="selected-count">0</span>
-        <span>| Current Word:</span>
-        <span id="current-word"></span>
-    `;
-    
-    // Insert after puzzle header
-    const puzzleHeader = document.querySelector('.puzzle-header');
-    puzzleHeader.parentNode.insertBefore(counterDiv, puzzleHeader.nextSibling);
-}
-
-// Update selection counter display
-function updateSelectionCounter() {
-    const countElement = document.getElementById('selected-count');
-    const wordElement = document.getElementById('current-word');
-    
-    if (countElement) {
-        countElement.textContent = gameState.selectedCells.length;
-    }
-    
-    if (wordElement) {
-        const selectedWord = gameState.selectedCells.map(cell => cell.letter).join('');
-        wordElement.textContent = selectedWord || '(none)';
-        wordElement.style.color = selectedWord ? '#1a2980' : '#999';
-        wordElement.style.fontWeight = selectedWord ? 'bold' : 'normal';
-    }
-}
-
-// Handle cell click - SIMPLE ONE-BY-ONE SELECTION
+// Handle cell click
 function handleCellClick(e) {
     if (!gameState.gameActive || gameState.gamePaused) return;
     
-    e.preventDefault();
-    e.stopPropagation();
-    
     const cellElement = e.currentTarget;
     
-    // Get cell data - FIXED: Use dataset.letter instead of textContent
+    // Get cell data
     const cell = {
         element: cellElement,
         x: parseInt(cellElement.dataset.x),
         y: parseInt(cellElement.dataset.y),
-        letter: cellElement.dataset.letter // FIXED: Changed from textContent to dataset.letter
+        letter: cellElement.dataset.letter
     };
     
     // Check if cell is already selected
@@ -731,18 +677,34 @@ function updateCellOrderIndicators() {
     
     // Then add order indicators to selected cells
     gameState.selectedCells.forEach((cell, index) => {
-        cell.element.setAttribute('data-order', index + 1);
+        if (cell.element) {
+            cell.element.setAttribute('data-order', index + 1);
+        }
     });
+}
+
+// Update selection counter
+function updateSelectionCounter() {
+    if (selectedCountElement) {
+        selectedCountElement.textContent = gameState.selectedCells.length;
+    }
+    
+    if (currentWordElement) {
+        const selectedWord = gameState.selectedCells.map(cell => cell.letter).join('');
+        currentWordElement.textContent = selectedWord || '(none)';
+        currentWordElement.style.color = selectedWord ? '#1a2980' : '#999';
+        currentWordElement.style.fontWeight = selectedWord ? 'bold' : 'normal';
+    }
 }
 
 // Update selection message
 function updateSelectionMessage() {
     if (gameState.selectedCells.length === 0) {
-        messageElement.textContent = "Click letters one by one to select them. Click 'Check Highlighted' when ready.";
+        messageElement.textContent = "Click letters one by one to select them. Click 'Check' when ready.";
         messageElement.style.color = "#1a2980";
     } else {
         const selectedWord = gameState.selectedCells.map(cell => cell.letter).join('');
-        messageElement.textContent = `Selected ${gameState.selectedCells.length} letters: "${selectedWord}". Click 'Check Highlighted' to verify.`;
+        messageElement.textContent = `Selected ${gameState.selectedCells.length} letters: "${selectedWord}". Click 'Check' to verify.`;
         messageElement.style.color = "#1a2980";
     }
 }
@@ -841,17 +803,6 @@ function checkHighlightedWord() {
                     matchType = 'reverse-contains';
                     break;
                 }
-                
-                // Also check if word contains the selected letters (for partial matches)
-                if (placedWord.word.includes(selectedWord) && selectedWord.length >= 3) {
-                    foundWord = placedWord;
-                    matchType = 'partial';
-                    break;
-                } else if (placedWord.word.includes(reversedWord) && reversedWord.length >= 3) {
-                    foundWord = placedWord;
-                    matchType = 'reverse-partial';
-                    break;
-                }
             }
         }
     }
@@ -875,10 +826,10 @@ function checkHighlightedWord() {
             }
         }
         
-        // Update score (partial matches get less points)
+        // Update score
         let wordScore = foundWord.word.length * 10;
-        if (matchType.includes('partial') || matchType.includes('contains')) {
-            wordScore = Math.floor(wordScore * 0.7); // 70% points for partial matches
+        if (matchType.includes('contains')) {
+            wordScore = Math.floor(wordScore * 0.7);
         }
         
         gameState.score += wordScore;
@@ -894,7 +845,7 @@ function checkHighlightedWord() {
         let message = `Correct! Found "${foundWord.word}". You earned ${wordScore} points!`;
         if (matchType === 'reverse') {
             message = `Correct! Found "${foundWord.word}" backwards. You earned ${wordScore} points!`;
-        } else if (matchType.includes('partial') || matchType.includes('contains')) {
+        } else if (matchType.includes('contains')) {
             message = `Good! Found "${foundWord.word}" (partial match). You earned ${wordScore} points!`;
         }
         
@@ -906,8 +857,8 @@ function checkHighlightedWord() {
             endGame(true);
         }
     } else {
-        // Incorrect word - give helpful hint
-        messageElement.textContent = `"${selectedWord}" doesn't match any word. Try selecting letters in order or check your spelling.`;
+        // Incorrect word
+        messageElement.textContent = `"${selectedWord}" doesn't match any word. Try selecting letters in order.`;
         messageElement.style.color = "#ff5252";
         
         // Shake the selected cells
@@ -984,7 +935,7 @@ function useHint() {
     
     // Update game state
     gameState.hintsUsed++;
-    gameState.score = Math.max(0, gameState.score - 20); // Deduct points for hint
+    gameState.score = Math.max(0, gameState.score - 20);
     updateScore();
     updateHintsLeft();
     
@@ -1016,7 +967,7 @@ function toggleShowWords() {
             }
         }
         
-        showWordsBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Hide Words';
+        showWordsBtn.innerHTML = '<i class="fas fa-eye-slash"></i> Hide';
         messageElement.textContent = "All words are now highlighted. This won't give you points!";
         messageElement.style.color = "#ffcc00";
     } else {
@@ -1037,7 +988,7 @@ function toggleShowWords() {
             }
         }
         
-        showWordsBtn.innerHTML = '<i class="fas fa-eye"></i> Show Words';
+        showWordsBtn.innerHTML = '<i class="fas fa-eye"></i> Show';
         messageElement.textContent = "Words are now hidden. Find them yourself!";
         messageElement.style.color = "#1a2980";
     }
@@ -1138,6 +1089,7 @@ function resetGame() {
         updateFoundWords();
         updateHintsLeft();
         updateTimerDisplay();
+        updateSelectionCounter();
         
         // Reset timer
         gameState.timeLeft = gameState.timeLimit;
@@ -1146,7 +1098,7 @@ function resetGame() {
         generatePuzzle();
         
         // Reset show words button
-        showWordsBtn.innerHTML = '<i class="fas fa-eye"></i> Show Words';
+        showWordsBtn.innerHTML = '<i class="fas fa-eye"></i> Show';
         
         // Message
         messageElement.textContent = "New puzzle generated! Click letters one by one to select them.";
@@ -1169,7 +1121,7 @@ function goBackToMenu() {
     gameState.gamePaused = false;
     hidePauseOverlay();
     showStartScreen();
-    loadHighScores(); // Refresh high scores display
+    loadHighScores();
 }
 
 // Update score display
@@ -1347,39 +1299,6 @@ function createConfetti() {
         };
     }
 }
-
-// Add shake animation for incorrect answers
-const style = document.createElement('style');
-style.textContent = `
-    @keyframes shake {
-        0%, 100% { transform: translateX(0); }
-        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
-        20%, 40%, 60%, 80% { transform: translateX(5px); }
-    }
-`;
-document.head.appendChild(style);
-
-// Make grid cells responsive on window resize
-window.addEventListener('resize', function() {
-    if (gameState.gameActive && puzzleGridElement.children.length > 0) {
-        // Recalculate cell sizes based on new window size
-        const cells = document.querySelectorAll('.grid-cell');
-        let cellSize;
-        
-        if (gameState.gridSize <= 10) {
-            cellSize = window.innerWidth < 600 ? "32px" : "40px";
-        } else if (gameState.gridSize <= 12) {
-            cellSize = window.innerWidth < 600 ? "28px" : "35px";
-        } else {
-            cellSize = window.innerWidth < 600 ? "24px" : "30px";
-        }
-        
-        cells.forEach(cell => {
-            cell.style.width = cellSize;
-            cell.style.height = cellSize;
-        });
-    }
-});
 
 // Initialize the game when page loads
 document.addEventListener('DOMContentLoaded', initGame);
