@@ -22,13 +22,14 @@ const gameState = {
         wordCount: 10,
         difficulty: 'easy',
         timeLimit: 300
-    }
+    },
+    // NEW: Track if we're in drag mode or click mode
+    selectionMode: 'click' // 'click' or 'drag'
 };
 
 // EXPANDED Word lists by difficulty with many more words
 const wordLists = {
     easy: [
-        // 4-5 letter words
         "WORD", "GAME", "PLAY", "FIND", "GRID", "LIST", "TIME", "LOVE", "BOOK", "HOME",
         "FIRE", "FOOD", "WATER", "LIFE", "WORK", "CARE", "MOON", "STAR", "SUN", "TREE",
         "HOUSE", "MUSIC", "COLOR", "SOUND", "LIGHT", "DARK", "SOFT", "HARD", "FAST", "SLOW",
@@ -40,7 +41,6 @@ const wordLists = {
         "EARTH", "MARS", "VENUS", "JUPITER", "SATURN", "PLUTO", "COMET", "STAR", "MOON", "SUN"
     ],
     medium: [
-        // 6-8 letter words
         "PUZZLE", "SEARCH", "CHALLENGE", "SOLUTION", "HORIZONTAL", "VERTICAL", "DIAGONAL",
         "BACKWARD", "FORWARD", "LOCATE", "DISCOVER", "EXPLORE", "MYSTERY", "PATTERN",
         "COMPLETE", "PROGRESS", "VICTORY", "SUCCESS", "ACHIEVE", "ACCOMPLISH", "ELEPHANT",
@@ -54,7 +54,6 @@ const wordLists = {
         "MORNING", "EVENING", "NIGHT", "MIDNIGHT", "SUNRISE", "SUNSET", "TWILIGHT", "DAWN"
     ],
     hard: [
-        // 9+ letter words
         "DETERMINATION", "ENTHUSIASTIC", "EXTRAORDINARY", "FANTASTIC", "KNOWLEDGEABLE",
         "PERSEVERANCE", "UNFORGETTABLE", "VOLUNTEER", "XENOPHILE", "YOUTHFUL", "ZEALOUS",
         "ARCHITECTURE", "ENGINEERING", "TECHNOLOGY", "SCIENCE", "MATHEMATICS", "CHEMISTRY",
@@ -133,7 +132,7 @@ function initGame() {
     loadHighScores();
 }
 
-// Load high scores from localStorage - FIXED
+// Load high scores from localStorage
 function loadHighScores() {
     try {
         const scores = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
@@ -144,7 +143,7 @@ function loadHighScores() {
     }
 }
 
-// Save high score to localStorage - FIXED
+// Save high score to localStorage
 function saveHighScore(score, settings) {
     try {
         // Get existing scores or create empty array
@@ -200,7 +199,7 @@ function saveHighScore(score, settings) {
     }
 }
 
-// Display high scores - FIXED
+// Display high scores
 function displayHighScores(scores) {
     if (!scores || scores.length === 0) {
         highScoresElement.innerHTML = '<div class="no-scores">No high scores yet. Be the first!</div>';
@@ -229,7 +228,7 @@ function displayHighScores(scores) {
     highScoresElement.innerHTML = html;
 }
 
-// Clear all scores - FIXED
+// Clear all scores
 function clearAllScores() {
     if (confirm('Are you sure you want to clear all high scores? This action cannot be undone.')) {
         localStorage.removeItem(STORAGE_KEY);
@@ -286,6 +285,7 @@ function startGame() {
     gameState.gamePaused = false;
     gameState.showAllWords = false;
     gameState.selectedCells = [];
+    gameState.selectionMode = 'click';
     
     // Update UI
     updateScore();
@@ -312,7 +312,7 @@ function startGame() {
     startTimer();
     
     // Initial message
-    messageElement.textContent = "Game started! Click or drag to highlight words.";
+    messageElement.textContent = "Game started! Drag to select letters. Click 'Check Highlighted' when ready.";
     messageElement.style.color = "#1a2980";
     hintTextElement.textContent = "";
 }
@@ -511,6 +511,17 @@ function renderGrid() {
         cellSize = "30px";
     }
     
+    // Adjust for mobile
+    if (window.innerWidth < 600) {
+        if (gameState.gridSize <= 10) {
+            cellSize = "32px";
+        } else if (gameState.gridSize <= 12) {
+            cellSize = "28px";
+        } else {
+            cellSize = "24px";
+        }
+    }
+    
     // Create cells
     for (let i = 0; i < gameState.gridSize; i++) {
         for (let j = 0; j < gameState.gridSize; j++) {
@@ -519,6 +530,7 @@ function renderGrid() {
             cell.textContent = gameState.grid[i][j] || '?';
             cell.dataset.x = i;
             cell.dataset.y = j;
+            cell.dataset.letter = gameState.grid[i][j];
             cell.style.width = cellSize;
             cell.style.height = cellSize;
             
@@ -540,11 +552,12 @@ function renderGrid() {
     }
 }
 
-// NEW: Handle cell click (single click selection)
+// Handle cell click (single click selection) - FIXED
 function handleCellClick(e) {
     if (!gameState.gameActive || gameState.gamePaused) return;
     
     e.preventDefault();
+    e.stopPropagation();
     
     const cell = getCellFromEvent(e);
     if (!cell) return;
@@ -553,26 +566,28 @@ function handleCellClick(e) {
     toggleCellSelection(cell);
     
     // Update message
-    if (gameState.selectedCells.length > 0) {
-        messageElement.textContent = `${gameState.selectedCells.length} letters selected. Click 'Check Highlighted' to verify.`;
-        messageElement.style.color = "#1a2980";
-    }
+    updateSelectionMessage();
 }
 
-// FIXED: Mouse event handlers for dragging
+// Mouse event handlers for dragging
 let isDragging = false;
+let lastSelectedCell = null;
 
 function handleMouseDown(e) {
     if (!gameState.gameActive || gameState.gamePaused) return;
     
     e.preventDefault();
+    e.stopPropagation();
+    
     isDragging = true;
+    gameState.selectionMode = 'drag';
     
     const cell = getCellFromEvent(e);
     if (cell) {
         // Clear previous selection and start new one
         clearHighlight();
         toggleCellSelection(cell);
+        lastSelectedCell = cell;
     }
 }
 
@@ -582,8 +597,9 @@ function handleMouseOver(e) {
     e.preventDefault();
     
     const cell = getCellFromEvent(e);
-    if (cell) {
+    if (cell && cell !== lastSelectedCell) {
         toggleCellSelection(cell);
+        lastSelectedCell = cell;
     }
 }
 
@@ -592,15 +608,13 @@ function handleMouseUp(e) {
     
     e.preventDefault();
     isDragging = false;
+    lastSelectedCell = null;
     
-    // Check if we have a valid selection
-    if (gameState.selectedCells.length > 0) {
-        messageElement.textContent = `${gameState.selectedCells.length} letters selected. Click 'Check Highlighted' to verify.`;
-        messageElement.style.color = "#1a2980";
-    }
+    // Update message
+    updateSelectionMessage();
 }
 
-// FIXED: Touch event handlers for mobile
+// Touch event handlers for mobile
 let touchStartX = null;
 let touchStartY = null;
 
@@ -612,11 +626,14 @@ function handleTouchStart(e) {
     touchStartX = touch.clientX;
     touchStartY = touch.clientY;
     
+    gameState.selectionMode = 'drag';
+    
     const cell = getCellFromEvent(e);
     if (cell) {
         // Clear previous selection and start new one
         clearHighlight();
         toggleCellSelection(cell);
+        lastSelectedCell = cell;
     }
 }
 
@@ -626,8 +643,9 @@ function handleTouchMove(e) {
     e.preventDefault();
     
     const cell = getCellFromEvent(e);
-    if (cell) {
+    if (cell && cell !== lastSelectedCell) {
         toggleCellSelection(cell);
+        lastSelectedCell = cell;
     }
 }
 
@@ -637,12 +655,10 @@ function handleTouchEnd(e) {
     e.preventDefault();
     touchStartX = null;
     touchStartY = null;
+    lastSelectedCell = null;
     
-    // Check if we have a valid selection
-    if (gameState.selectedCells.length > 0) {
-        messageElement.textContent = `${gameState.selectedCells.length} letters selected. Click 'Check Highlighted' to verify.`;
-        messageElement.style.color = "#1a2980";
-    }
+    // Update message
+    updateSelectionMessage();
 }
 
 // Get cell from event
@@ -680,7 +696,7 @@ function getCellFromEvent(e) {
     return null;
 }
 
-// FIXED: Toggle cell selection
+// Toggle cell selection - FIXED for both click and drag
 function toggleCellSelection(cell) {
     const index = gameState.selectedCells.findIndex(c => c.x === cell.x && c.y === cell.y);
     
@@ -689,9 +705,23 @@ function toggleCellSelection(cell) {
         gameState.selectedCells.push(cell);
         cell.element.classList.add('highlighted');
     } else {
-        // Remove from selection
-        gameState.selectedCells.splice(index, 1);
-        cell.element.classList.remove('highlighted');
+        // Remove from selection (only in click mode, not drag mode)
+        if (gameState.selectionMode === 'click') {
+            gameState.selectedCells.splice(index, 1);
+            cell.element.classList.remove('highlighted');
+        }
+    }
+}
+
+// Update selection message
+function updateSelectionMessage() {
+    if (gameState.selectedCells.length === 0) {
+        messageElement.textContent = "Select letters by dragging. Click 'Check Highlighted' when ready.";
+        messageElement.style.color = "#1a2980";
+    } else {
+        const selectedWord = gameState.selectedCells.map(cell => cell.letter).join('');
+        messageElement.textContent = `${gameState.selectedCells.length} letters selected: "${selectedWord}". Click 'Check Highlighted' to verify.`;
+        messageElement.style.color = "#1a2980";
     }
 }
 
@@ -728,11 +758,11 @@ function clearHighlight() {
         }
     }
     gameState.selectedCells = [];
-    messageElement.textContent = "Highlight cleared. Select letters to form a word.";
-    messageElement.style.color = "#1a2980";
+    gameState.selectionMode = 'click';
+    updateSelectionMessage();
 }
 
-// FIXED: Check highlighted word - Now accepts ANY selection pattern
+// Check highlighted word - Now accepts ANY selection pattern
 function checkHighlightedWord() {
     if (!gameState.gameActive || gameState.gamePaused) return;
     
@@ -750,15 +780,18 @@ function checkHighlightedWord() {
     
     // Check all possible words (forward, backward, and any substring)
     let foundWord = null;
+    let matchType = 'exact';
     
     // First, check for exact matches
     for (const placedWord of gameState.placedWords) {
         if (!placedWord.found) {
             if (selectedWord === placedWord.word) {
                 foundWord = placedWord;
+                matchType = 'exact';
                 break;
             } else if (reversedWord === placedWord.word) {
                 foundWord = placedWord;
+                matchType = 'reverse';
                 break;
             }
         }
@@ -771,18 +804,22 @@ function checkHighlightedWord() {
                 // Check if the selected letters contain the word
                 if (selectedWord.includes(placedWord.word)) {
                     foundWord = placedWord;
+                    matchType = 'contains';
                     break;
                 } else if (reversedWord.includes(placedWord.word)) {
                     foundWord = placedWord;
+                    matchType = 'reverse-contains';
                     break;
                 }
                 
-                // Also check if word contains the selected letters (for shorter selections)
+                // Also check if word contains the selected letters (for partial matches)
                 if (placedWord.word.includes(selectedWord) && selectedWord.length >= 3) {
                     foundWord = placedWord;
+                    matchType = 'partial';
                     break;
                 } else if (placedWord.word.includes(reversedWord) && reversedWord.length >= 3) {
                     foundWord = placedWord;
+                    matchType = 'reverse-partial';
                     break;
                 }
             }
@@ -813,8 +850,12 @@ function checkHighlightedWord() {
             }
         }
         
-        // Update score
-        const wordScore = foundWord.word.length * 10;
+        // Update score (partial matches get less points)
+        let wordScore = foundWord.word.length * 10;
+        if (matchType.includes('partial') || matchType.includes('contains')) {
+            wordScore = Math.floor(wordScore * 0.7); // 70% points for partial matches
+        }
+        
         gameState.score += wordScore;
         gameState.foundWords++;
         
@@ -824,20 +865,24 @@ function checkHighlightedWord() {
         // Update word list
         renderWordList();
         
-        // Success message
-        messageElement.textContent = `Correct! Found "${foundWord.word}". You earned ${wordScore} points!`;
+        // Success message based on match type
+        let message = `Correct! Found "${foundWord.word}". You earned ${wordScore} points!`;
+        if (matchType === 'reverse') {
+            message = `Correct! Found "${foundWord.word}" backwards. You earned ${wordScore} points!`;
+        } else if (matchType.includes('partial') || matchType.includes('contains')) {
+            message = `Good! Found "${foundWord.word}" (partial match). You earned ${wordScore} points!`;
+        }
+        
+        messageElement.textContent = message;
         messageElement.style.color = "#4CAF50";
         
         // Check if all words are found
         if (gameState.foundWords === gameState.totalWords) {
             endGame(true);
         }
-        
-        // Clear selection
-        gameState.selectedCells = [];
     } else {
         // Incorrect word - give helpful hint
-        messageElement.textContent = `"${selectedWord}" doesn't match any word. Try again!`;
+        messageElement.textContent = `"${selectedWord}" doesn't match any word. Try selecting letters in order or check your spelling.`;
         messageElement.style.color = "#ff5252";
         
         // Shake the selected cells
@@ -855,7 +900,7 @@ function checkHighlightedWord() {
         // Clear selection after a delay
         setTimeout(() => {
             clearHighlight();
-        }, 1000);
+        }, 1500);
     }
 }
 
@@ -1068,6 +1113,7 @@ function resetGame() {
         gameState.hintsUsed = 0;
         gameState.showAllWords = false;
         gameState.selectedCells = [];
+        gameState.selectionMode = 'click';
         
         // Update UI
         updateScore();
@@ -1085,7 +1131,7 @@ function resetGame() {
         showWordsBtn.innerHTML = '<i class="fas fa-eye"></i> Show Words';
         
         // Message
-        messageElement.textContent = "New puzzle generated! Find and highlight the words.";
+        messageElement.textContent = "New puzzle generated! Drag to select letters.";
         messageElement.style.color = "#1a2980";
         hintTextElement.textContent = "";
     }
@@ -1152,7 +1198,7 @@ function updateTimerDisplay() {
     timerElement.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-// FIXED: End game with score saving
+// End game with score saving
 function endGame(isWin) {
     gameState.gameActive = false;
     clearInterval(gameState.timer);
@@ -1294,6 +1340,28 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// Make grid cells responsive on window resize
+window.addEventListener('resize', function() {
+    if (gameState.gameActive && puzzleGridElement.children.length > 0) {
+        // Recalculate cell sizes based on new window size
+        const cells = document.querySelectorAll('.grid-cell');
+        let cellSize;
+        
+        if (gameState.gridSize <= 10) {
+            cellSize = window.innerWidth < 600 ? "32px" : "40px";
+        } else if (gameState.gridSize <= 12) {
+            cellSize = window.innerWidth < 600 ? "28px" : "35px";
+        } else {
+            cellSize = window.innerWidth < 600 ? "24px" : "30px";
+        }
+        
+        cells.forEach(cell => {
+            cell.style.width = cellSize;
+            cell.style.height = cellSize;
+        });
+    }
+});
 
 // Initialize the game when page loads
 document.addEventListener('DOMContentLoaded', initGame);
