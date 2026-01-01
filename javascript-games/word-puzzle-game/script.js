@@ -329,6 +329,9 @@ function generatePuzzle() {
     const selectedWords = new Set();
     const maxWordLength = gameState.gridSize;
     
+    // Sort word pool by length (longest first) for better placement
+    wordPool.sort((a, b) => b.length - a.length);
+    
     for (let i = 0; i < gameState.totalWords && wordPool.length > 0; i++) {
         // Filter words that fit in the grid
         const fittingWords = wordPool.filter(word => 
@@ -362,8 +365,8 @@ function generatePuzzle() {
         }
     }
     
-    // Convert set to array
-    gameState.words = Array.from(selectedWords);
+    // Convert set to array and sort by length (longest first)
+    gameState.words = Array.from(selectedWords).sort((a, b) => b.length - a.length);
     
     // If we still don't have enough words, add more fallback words
     const fallbackWords = ["GAME", "WORD", "FIND", "PLAY", "GRID", "PUZZLE", "SEARCH", "SOLVE", "TIME", "LOVE"];
@@ -384,7 +387,29 @@ function generatePuzzle() {
     }
     
     // Place words in the grid
-    placeWordsInGrid();
+    const success = placeWordsInGrid();
+    
+    if (!success) {
+        // If word placement failed, regenerate with smaller words
+        console.log("Word placement failed, regenerating with smaller words...");
+        // Remove longest words that couldn't be placed
+        while (gameState.words.length > 0 && gameState.words[0].length > Math.floor(gameState.gridSize * 0.8)) {
+            gameState.words.shift();
+        }
+        
+        // Try again with remaining words
+        if (gameState.words.length > 0) {
+            // Reinitialize grid
+            for (let i = 0; i < gameState.gridSize; i++) {
+                gameState.grid[i] = [];
+                for (let j = 0; j < gameState.gridSize; j++) {
+                    gameState.grid[i][j] = "";
+                }
+            }
+            gameState.placedWords = [];
+            placeWordsInGrid();
+        }
+    }
     
     // Fill empty cells with random letters
     fillEmptyCells();
@@ -396,44 +421,72 @@ function generatePuzzle() {
     renderWordList();
 }
 
-// Place words in the grid
+// Place words in the grid - IMPROVED VERSION
 function placeWordsInGrid() {
     const directions = [
-        { x: 1, y: 0 },   // Horizontal (left to right)
-        { x: 0, y: 1 },   // Vertical (top to bottom)
-        { x: 1, y: 1 },   // Diagonal down-right
-        { x: 1, y: -1 },  // Diagonal up-right
-        { x: -1, y: 0 },  // Horizontal (right to left)
-        { x: 0, y: -1 },  // Vertical (bottom to top)
-        { x: -1, y: -1 }, // Diagonal up-left
-        { x: -1, y: 1 }   // Diagonal down-left
+        { x: 1, y: 0, name: 'horizontal' },   // Horizontal (left to right)
+        { x: 0, y: 1, name: 'vertical' },     // Vertical (top to bottom)
+        { x: 1, y: 1, name: 'diagonal-down-right' },   // Diagonal down-right
+        { x: 1, y: -1, name: 'diagonal-up-right' },    // Diagonal up-right
+        { x: -1, y: 0, name: 'horizontal-reverse' },   // Horizontal (right to left)
+        { x: 0, y: -1, name: 'vertical-reverse' },     // Vertical (bottom to top)
+        { x: -1, y: -1, name: 'diagonal-up-left' },    // Diagonal up-left
+        { x: -1, y: 1, name: 'diagonal-down-left' }    // Diagonal down-left
     ];
     
-    for (const word of gameState.words) {
+    // Track which words couldn't be placed
+    let unplacedWords = [];
+    
+    // Sort words by length (longest first) for better placement
+    const sortedWords = [...gameState.words].sort((a, b) => b.length - a.length);
+    
+    // Place each word
+    for (const word of sortedWords) {
         let placed = false;
         let attempts = 0;
-        const maxAttempts = 500;
+        const maxAttempts = 2000; // Increased attempts for better placement
+        
+        // Shuffle directions for each word to get more variety
+        const shuffledDirections = [...directions].sort(() => Math.random() - 0.5);
         
         while (!placed && attempts < maxAttempts) {
             attempts++;
             
-            // Choose random direction
-            const direction = directions[Math.floor(Math.random() * directions.length)];
+            // Choose random direction from shuffled list
+            const direction = shuffledDirections[attempts % shuffledDirections.length];
             
-            // Choose random starting position
-            const startX = Math.floor(Math.random() * gameState.gridSize);
-            const startY = Math.floor(Math.random() * gameState.gridSize);
+            // Calculate maximum possible starting position
+            let maxStartX = gameState.gridSize - 1;
+            let maxStartY = gameState.gridSize - 1;
+            let minStartX = 0;
+            let minStartY = 0;
             
-            // Check if word fits in this direction
-            const endX = startX + direction.x * (word.length - 1);
-            const endY = startY + direction.y * (word.length - 1);
-            
-            if (endX < 0 || endX >= gameState.gridSize || endY < 0 || endY >= gameState.gridSize) {
-                continue; // Word doesn't fit
+            // Adjust bounds based on direction
+            if (direction.x > 0) {
+                maxStartX = gameState.gridSize - word.length;
+            } else if (direction.x < 0) {
+                minStartX = word.length - 1;
             }
             
-            // Check if cells are empty or have matching letters
+            if (direction.y > 0) {
+                maxStartY = gameState.gridSize - word.length;
+            } else if (direction.y < 0) {
+                minStartY = word.length - 1;
+            }
+            
+            // Ensure bounds are valid
+            if (maxStartX < minStartX || maxStartY < minStartY) {
+                continue;
+            }
+            
+            // Choose random starting position within bounds
+            const startX = Math.floor(Math.random() * (maxStartX - minStartX + 1)) + minStartX;
+            const startY = Math.floor(Math.random() * (maxStartY - minStartY + 1)) + minStartY;
+            
+            // Check if word fits in this direction
             let canPlace = true;
+            const cellsToCheck = [];
+            
             for (let i = 0; i < word.length; i++) {
                 const x = startX + direction.x * i;
                 const y = startY + direction.y * i;
@@ -449,6 +502,8 @@ function placeWordsInGrid() {
                     canPlace = false;
                     break;
                 }
+                
+                cellsToCheck.push({ x, y, letter: word[i] });
             }
             
             if (canPlace) {
@@ -461,21 +516,63 @@ function placeWordsInGrid() {
                     found: false
                 };
                 
-                for (let i = 0; i < word.length; i++) {
-                    const x = startX + direction.x * i;
-                    const y = startY + direction.y * i;
-                    gameState.grid[x][y] = word[i];
+                for (const cell of cellsToCheck) {
+                    gameState.grid[cell.x][cell.y] = cell.letter;
                 }
                 
                 gameState.placedWords.push(wordInfo);
                 placed = true;
+                break;
             }
         }
         
         if (!placed) {
             console.warn(`Could not place word: ${word} after ${maxAttempts} attempts`);
+            unplacedWords.push(word);
+            
+            // If we can't place this word, try replacing with a shorter word
+            if (unplacedWords.length > 2) {
+                // Too many unplaced words, return failure
+                return false;
+            }
         }
     }
+    
+    // Check if all words were placed
+    if (unplacedWords.length > 0) {
+        console.log(`Could not place ${unplacedWords.length} words:`, unplacedWords);
+        
+        // Try to replace unplaced words with shorter alternatives
+        for (const unplacedWord of unplacedWords) {
+            const shorterWords = gameState.words.filter(w => 
+                w !== unplacedWord && 
+                w.length <= unplacedWord.length &&
+                !gameState.placedWords.some(pw => pw.word === w)
+            );
+            
+            if (shorterWords.length > 0) {
+                const replacement = shorterWords[0];
+                console.log(`Replacing ${unplacedWord} with ${replacement}`);
+                
+                // Find and remove the unplaced word from the word list
+                const wordIndex = gameState.words.indexOf(unplacedWord);
+                if (wordIndex > -1) {
+                    gameState.words.splice(wordIndex, 1);
+                }
+                
+                // Add the replacement
+                gameState.words.push(replacement);
+                
+                // Try to place the replacement word
+                // This is a simplified retry - in a full implementation, 
+                // you'd want to retry the entire placement process
+            }
+        }
+        
+        return false;
+    }
+    
+    return true;
 }
 
 // Fill empty cells with random letters
@@ -483,7 +580,7 @@ function fillEmptyCells() {
     const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
     for (let i = 0; i < gameState.gridSize; i++) {
         for (let j = 0; j < gameState.gridSize; j++) {
-            if (!gameState.grid[i][j]) {
+            if (!gameState.grid[i] || !gameState.grid[i][j] || gameState.grid[i][j] === "") {
                 gameState.grid[i][j] = letters[Math.floor(Math.random() * letters.length)];
             }
         }
@@ -584,12 +681,12 @@ function handleCellClick(e) {
     
     const cellElement = e.currentTarget;
     
-    // Get cell data
+    // Get cell data - FIXED: Use dataset.letter instead of textContent
     const cell = {
         element: cellElement,
         x: parseInt(cellElement.dataset.x),
         y: parseInt(cellElement.dataset.y),
-        letter: cellElement.textContent
+        letter: cellElement.dataset.letter // FIXED: Changed from textContent to dataset.letter
     };
     
     // Check if cell is already selected
@@ -654,7 +751,10 @@ function updateSelectionMessage() {
 function renderWordList() {
     wordListElement.innerHTML = "";
     
-    for (const word of gameState.words) {
+    // Display words in alphabetical order for easier finding
+    const sortedWords = [...gameState.words].sort();
+    
+    for (const word of sortedWords) {
         const wordItem = document.createElement('div');
         wordItem.className = 'word-item';
         wordItem.textContent = word;
@@ -760,23 +860,18 @@ function checkHighlightedWord() {
         // Mark word as found
         foundWord.found = true;
         
-        // Highlight all cells of the actual word location
-        const { word, startX, startY, direction } = foundWord;
-        
         // Clear current selection
         clearHighlight();
         
         // Highlight the actual word cells
+        const { word, startX, startY, direction } = foundWord;
         for (let i = 0; i < word.length; i++) {
             const x = startX + direction.x * i;
             const y = startY + direction.y * i;
             
-            const cells = document.querySelectorAll('.grid-cell');
-            for (const cell of cells) {
-                if (parseInt(cell.dataset.x) === x && parseInt(cell.dataset.y) === y) {
-                    cell.classList.add('found');
-                    break;
-                }
+            const cell = document.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
+            if (cell) {
+                cell.classList.add('found');
             }
         }
         
@@ -914,12 +1009,9 @@ function toggleShowWords() {
                 const x = startX + direction.x * i;
                 const y = startY + direction.y * i;
                 
-                const cells = document.querySelectorAll('.grid-cell');
-                for (const cell of cells) {
-                    if (parseInt(cell.dataset.x) === x && parseInt(cell.dataset.y) === y) {
-                        cell.classList.add('found');
-                        break;
-                    }
+                const cell = document.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
+                if (cell) {
+                    cell.classList.add('found');
                 }
             }
         }
@@ -937,12 +1029,9 @@ function toggleShowWords() {
                     const x = startX + direction.x * i;
                     const y = startY + direction.y * i;
                     
-                    const cells = document.querySelectorAll('.grid-cell');
-                    for (const cell of cells) {
-                        if (parseInt(cell.dataset.x) === x && parseInt(cell.dataset.y) === y) {
-                            cell.classList.remove('found');
-                            break;
-                        }
+                    const cell = document.querySelector(`.grid-cell[data-x="${x}"][data-y="${y}"]`);
+                    if (cell) {
+                        cell.classList.remove('found');
                     }
                 }
             }
