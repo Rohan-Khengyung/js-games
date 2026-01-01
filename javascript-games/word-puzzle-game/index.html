@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, user-scalable=yes">
     <title>Word Search Puzzle</title>
     <link rel="stylesheet" href="style.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -30,9 +30,9 @@
                                     <i class="fas fa-th-large"></i> Grid Size
                                 </label>
                                 <select id="grid-size">
-                                    <option value="10">10×10 (Easy)</option>
-                                    <option value="12">12×12 (Medium)</option>
-                                    <option value="15">15×15 (Hard)</option>
+                                    <option value="8">8×8 (Easy)</option>
+                                    <option value="10" selected>10×10 (Medium)</option>
+                                    <option value="12">12×12 (Hard)</option>
                                 </select>
                             </div>
                             
@@ -41,10 +41,10 @@
                                     <i class="fas fa-list-ol"></i> Word Count
                                 </label>
                                 <select id="word-count">
-                                    <option value="8">8 Words</option>
-                                    <option value="10" selected>10 Words</option>
+                                    <option value="6">6 Words</option>
+                                    <option value="8" selected>8 Words</option>
+                                    <option value="10">10 Words</option>
                                     <option value="12">12 Words</option>
-                                    <option value="15">15 Words</option>
                                 </select>
                             </div>
                             
@@ -64,10 +64,10 @@
                                     <i class="fas fa-clock"></i> Time Limit (seconds)
                                 </label>
                                 <select id="time-limit">
+                                    <option value="120">120s (2 minutes)</option>
                                     <option value="180">180s (3 minutes)</option>
                                     <option value="300" selected>300s (5 minutes)</option>
                                     <option value="420">420s (7 minutes)</option>
-                                    <option value="600">600s (10 minutes)</option>
                                 </select>
                             </div>
                         </div>
@@ -87,15 +87,15 @@
                                 </div>
                                 <div class="instruction">
                                     <i class="fas fa-check"></i>
-                                    <span>Click "Check Highlighted" to verify word</span>
+                                    <span>Click "Check" to verify selected word</span>
                                 </div>
                                 <div class="instruction">
                                     <i class="fas fa-lightbulb"></i>
-                                    <span>Use hints when stuck</span>
+                                    <span>Use hints when stuck (costs 20 points)</span>
                                 </div>
                                 <div class="instruction">
                                     <i class="fas fa-exchange-alt"></i>
-                                    <span>Words can be forward, back, or diagonal.</span>
+                                    <span>Words can be forwards or backwards</span>
                                 </div>
                             </div>
                         </div>
@@ -121,7 +121,7 @@
                         </div>
                         <div class="stat">
                             <span class="stat-label">Found</span>
-                            <span id="found" class="stat-value">0/10</span>
+                            <span id="found" class="stat-value">0/8</span>
                         </div>
                         <div class="stat">
                             <span class="stat-label">Time</span>
@@ -164,7 +164,7 @@
                                 </div>
                                 <div class="setting-info">
                                     <span class="setting-label">Words:</span>
-                                    <span id="current-word-count" class="setting-value">10</span>
+                                    <span id="current-word-count" class="setting-value">8</span>
                                 </div>
                                 <div class="setting-info">
                                     <span class="setting-label">Difficulty:</span>
@@ -181,6 +181,8 @@
                                 <span id="grid-size-display">Grid: 10×10</span>
                             </div>
                         </div>
+                        
+                     
                         
                         <div class="selection-counter">
                             <span>Selected:</span>

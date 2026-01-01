@@ -686,23 +686,6 @@ header h1 {
     border: 2px solid #ff9900;
 }
 
-.grid-cell.selected::after {
-    content: attr(data-order);
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    background-color: #ff9900;
-    color: white;
-    font-size: 0.6rem;
-    font-weight: bold;
-    width: 16px;
-    height: 16px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 .grid-cell.found {
     background-color: #4CAF50;
     color: white;
